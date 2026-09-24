@@ -12,6 +12,26 @@ const navItems = [
   ["/judgments", "Judgments"], ["/documents", "Documents"], ["/about", "About"]
 ];
 
+const PRACTICE_AREAS = [
+  'Criminal Law',
+  'Civil Law',
+  'Corporate Law',
+  'Constitutional Law',
+  'Family Law',
+  'Property Law',
+  'Consumer Law',
+  'Cyber Law',
+  'Other'
+];
+
+const PRIMARY_COURTS = [
+  'District Court',
+  'High Court',
+  'Supreme Court',
+  'Tribunal',
+  'Other'
+];
+
 export default function App() {
   const [route, setRoute] = useState("/");
   const [param, setParam] = useState(null);
@@ -299,19 +319,177 @@ function LoginPage({ navigate, setUser }) {
   };
   return <AuthShell title="Welcome back" subtitle="Sign in to your Nyaya Path workspace."><form onSubmit={submit} className="space-y-4"><Input label="Email" value={email} onChange={setEmail} /><Input label="Password" type="password" value={password} onChange={setPassword} /><button className="w-full py-3 bg-slate-950 text-amber-400 rounded-xl font-bold">Login</button><button type="button" onClick={() => navigate("/register")} className="w-full text-sm text-amber-700">Create an account</button></form></AuthShell>;
 }
+
+/* REGISTRATION PAGE WITH SELECT DROPDOWN */
 function RegisterPage({ navigate, setUser }) {
-  const [data, setData] = useState({ name: "", email: "", password: "", role: "Citizen" });
+  const [role, setRole] = useState("Citizen");
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    password: "",
+    enrollmentNumber: "",
+    stateBarCouncil: "",
+    practiceArea: "Criminal Law",
+    primaryCourt: "District Court"
+  });
+
+  const handleChange = (field, val) => {
+    setFormData((prev) => ({ ...prev, [field]: val }));
+  };
+
   const submit = async (e) => {
     e.preventDefault();
 
-    const result = await apiService.register(data);
+    const payload = {
+      name: formData.name,
+      email: formData.email,
+      password: formData.password,
+      role: role,
+      ...(role === "Advocate" && {
+        enrollmentNumber: formData.enrollmentNumber,
+        stateBarCouncil: formData.stateBarCouncil,
+        practiceArea: formData.practiceArea,
+        primaryCourt: formData.primaryCourt
+      })
+    };
 
-    localStorage.setItem("nyaya_user", JSON.stringify(result.user));
-    setUser(result.user);
+    const result = await apiService.register(payload);
+    localStorage.setItem("nyaya_user", JSON.stringify(result.user || payload));
+    setUser(result.user || payload);
     navigate("/dashboard");
   };
-  return <AuthShell title="Create your account" subtitle="Choose how you plan to use Nyaya Path."><form onSubmit={submit} className="space-y-4"><Input label="Full Name" value={data.name} onChange={(v) => setData({ ...data, name: v })} /><Input label="Email" value={data.email} onChange={(v) => setData({ ...data, email: v })} /><Input label="Password" type="password" value={data.password} onChange={(v) => setData({ ...data, password: v })} /><label className="block text-sm font-semibold">User Type<select value={data.role} onChange={(e) => setData({ ...data, role: e.target.value })} className="mt-1 w-full border rounded-xl p-3"><option>Citizen</option><option>Lawyer</option><option>Student</option></select></label><button className="w-full py-3 bg-amber-500 text-slate-950 rounded-xl font-bold">Create Account</button></form></AuthShell>;
+
+  return (
+    <div className="max-w-4xl mx-auto px-4 py-12">
+      <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-10 shadow-sm">
+        
+        {/* Header */}
+        <div className="text-center mb-8">
+          <Scale className="mx-auto text-amber-500 mb-2" size={36} />
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-950">Join Nyaya Path</h1>
+          <p className="text-slate-500 text-sm mt-1">Select your role to access customized legal tools</p>
+        </div>
+
+        {/* Dynamic Layout based on role selection */}
+        <div className={`grid gap-8 ${role === "Advocate" ? "grid-cols-1 lg:grid-cols-12" : "grid-cols-1 max-w-md mx-auto"}`}>
+          
+          <form onSubmit={submit} className={`space-y-4 ${role === "Advocate" ? "lg:col-span-7" : "w-full"}`}>
+            
+            {/* User Type Dropdown */}
+            <label className="block text-sm font-semibold text-slate-700">
+              User Type
+              <select
+                value={role}
+                onChange={(e) => setRole(e.target.value)}
+                className="mt-1 w-full border border-slate-300 bg-white rounded-xl p-3 outline-none focus:ring-2 focus:ring-amber-400 text-sm font-medium text-slate-800"
+              >
+                <option value="Citizen">Citizen</option>
+                <option value="Advocate">Advocate</option>
+              </select>
+            </label>
+
+            <Input label="Full Name" value={formData.name} onChange={(v) => handleChange('name', v)} />
+            <Input label="Email" type="email" value={formData.email} onChange={(v) => handleChange('email', v)} />
+            <Input label="Password" type="password" value={formData.password} onChange={(v) => handleChange('password', v)} />
+
+            {/* Advocate-only fields */}
+            {role === "Advocate" && (
+              <>
+                <Input label="Enrollment Number" value={formData.enrollmentNumber} onChange={(v) => handleChange('enrollmentNumber', v)} />
+                <Input label="State Bar Council" value={formData.stateBarCouncil} onChange={(v) => handleChange('stateBarCouncil', v)} />
+
+                <label className="block text-sm font-semibold text-slate-700">
+                  Primary Practice Area
+                  <select
+                    value={formData.practiceArea}
+                    onChange={(e) => handleChange('practiceArea', e.target.value)}
+                    className="mt-1 w-full border border-slate-300 bg-white rounded-xl p-3 outline-none focus:ring-2 focus:ring-amber-400 text-sm"
+                  >
+                    {PRACTICE_AREAS.map((area) => (
+                      <option key={area} value={area}>{area}</option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="block text-sm font-semibold text-slate-700">
+                  Primary Court
+                  <select
+                    value={formData.primaryCourt}
+                    onChange={(e) => handleChange('primaryCourt', e.target.value)}
+                    className="mt-1 w-full border border-slate-300 bg-white rounded-xl p-3 outline-none focus:ring-2 focus:ring-amber-400 text-sm"
+                  >
+                    {PRIMARY_COURTS.map((court) => (
+                      <option key={court} value={court}>{court}</option>
+                    ))}
+                  </select>
+                </label>
+              </>
+            )}
+
+            <button
+              type="submit"
+              className="w-full py-3 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-xl font-bold transition-all shadow-sm mt-6"
+            >
+              {role === "Advocate" ? "Create Advocate Account" : "Create Citizen Account"}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => navigate("/login")}
+              className="w-full text-center text-sm text-amber-700 font-semibold mt-2"
+            >
+              Already have an account? Log In
+            </button>
+          </form>
+
+          {/* Real-Time Advocate Profile Preview */}
+          {role === "Advocate" && (
+            <div className="lg:col-span-5 flex flex-col justify-start">
+              <div className="bg-slate-950 text-white border border-amber-500/30 rounded-2xl p-6 text-center shadow-lg relative overflow-hidden">
+                <div className="w-14 h-14 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center mx-auto mb-3 text-amber-400">
+                  <Scale size={28} />
+                </div>
+
+                <span className="text-[10px] tracking-widest font-bold text-amber-400 uppercase">
+                  ADVOCATE PROFILE
+                </span>
+
+                <h3 className="text-xl font-black text-white mt-2">
+                  {formData.name.trim() || "Sayan Kumar"}
+                </h3>
+                <span className="text-xs font-semibold text-slate-400">
+                  Advocate
+                </span>
+
+                <div className="w-full border-t border-slate-800 my-4" />
+
+                <div className="space-y-1 text-sm text-slate-300">
+                  <p className="font-bold text-amber-400">
+                    {formData.practiceArea}
+                  </p>
+                  <p className="text-slate-400 text-xs">
+                    {formData.primaryCourt}
+                  </p>
+                </div>
+
+                <div className="w-full border-t border-slate-800 my-4" />
+
+                <div className="text-xs text-slate-400">
+                  <span>Enrollment: </span>
+                  <span className="font-mono text-amber-400 font-bold">
+                    {formData.enrollmentNumber.trim() || "Pending"}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+        </div>
+      </div>
+    </div>
+  );
 }
+
 function AuthShell({ title, subtitle, children }) {
   return (
     <div className="max-w-md mx-auto px-4 py-16">
@@ -337,7 +515,7 @@ function Input({ label, value, onChange, type = "text" }) {
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="mt-1 w-full border rounded-xl p-3 outline-none focus:ring-2 focus:ring-amber-400"
+        className="mt-1 w-full border rounded-xl p-3 outline-none focus:ring-2 focus:ring-amber-400 text-sm"
         required
       />
     </label>
@@ -353,6 +531,7 @@ function DashboardPage({ user, navigate, savedLaws, savedJudgments }) {
     <div className="grid lg:grid-cols-2 gap-6"><Saved title={`Saved Laws (${savedLaws.length})`} items={savedLaws.map(id => MOCK_LAWS.find(x => x.id === id)).filter(Boolean)} onClick={(id) => navigate("/laws/:id", id)} /><Saved title={`Saved Judgments (${savedJudgments.length})`} items={savedJudgments.map(id => MOCK_JUDGMENTS.find(x => x.id === id)).filter(Boolean)} onClick={(id) => navigate("/judgments/:id", id)} /></div>
   </div>;
 }
+
 function Saved({ title, items, onClick }) { return <div className="bg-white border rounded-2xl p-6"><h3 className="font-bold border-b pb-3">{title}</h3><div className="space-y-3 mt-4">{items.map(x => <button key={x.id} onClick={() => onClick(x.id)} className="w-full text-left bg-slate-50 p-3 rounded-xl flex justify-between"><span className="text-sm font-semibold">{x.title || x.caseName}</span><ChevronRight size={16}/></button>)}</div></div>; }
 
 function AskAIPage() {
@@ -405,6 +584,7 @@ function AskAIPage() {
     <div className="bg-white border rounded-2xl p-3 shadow-sm"><textarea value={input} onChange={e => setInput(e.target.value)} rows="3" className="w-full resize-none outline-none p-2" placeholder="Describe your legal issue..."/><div className="flex justify-between"><button onClick={voice} className={`px-3 py-2 rounded-lg text-xs ${listening ? "bg-rose-100 text-rose-700" : "bg-slate-100"}`}><Mic className="inline w-4 mr-1"/>{listening ? "Listening..." : "Voice Input"}</button><button onClick={send} className="px-5 py-2 bg-slate-950 text-amber-400 rounded-lg text-xs font-bold"><Send className="inline w-4 mr-1"/>Send</button></div></div>
   </div>;
 }
+
 function NLPPanel({ data }) {
   return (
     <div className="mt-4 grid sm:grid-cols-2 gap-3 text-xs">
@@ -460,6 +640,7 @@ function LawsPage({ navigate, savedLaws, toggleSave }) {
   const filtered = MOCK_LAWS.filter(x => (cat === "All" || x.category === cat) && `${x.title} ${x.description}`.toLowerCase().includes(q.toLowerCase()));
   return <ListPage title="Explore Indian Laws" subtitle="Search the mock legal catalogue; connect it to your verified dataset later." search={q} setSearch={setQ} filter={cat} setFilter={setCat} filters={categories}><div className="grid md:grid-cols-2 gap-5">{filtered.map(l => <div key={l.id} className="bg-white border rounded-2xl p-5"><div className="flex justify-between gap-3"><span className="text-xs bg-slate-100 px-2 py-1 rounded">{l.category}</span><button onClick={() => toggleSave(l.id)}>{savedLaws.includes(l.id) ? <BookmarkCheck className="text-amber-500"/> : <Bookmark/>}</button></div><h2 className="font-bold text-lg mt-3">{l.title}</h2><p className="text-xs text-slate-500 mt-1">{l.number} · {l.year}</p><p className="text-sm text-slate-600 mt-3">{l.description}</p><button onClick={() => navigate("/laws/:id", l.id)} className="mt-4 text-sm font-bold text-amber-700">View Details <ArrowRight className="inline w-4"/></button></div>)}</div></ListPage>;
 }
+
 function ListPage({ title, subtitle, search, setSearch, filter, setFilter, filters, children }) { return <div className="max-w-7xl mx-auto px-4 py-10"><SectionTitle title={title} desc={subtitle}/><div className="bg-white border rounded-2xl p-3 mt-8 flex flex-col md:flex-row gap-3"><div className="flex-1 flex items-center gap-2 border rounded-xl px-3"><Search size={18} className="text-slate-400"/><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search..." className="w-full outline-none p-2 text-sm"/></div><select value={filter} onChange={e => setFilter(e.target.value)} className="border rounded-xl p-2 text-sm">{filters.map(x => <option key={x}>{x}</option>)}</select></div><div className="mt-6">{children}</div></div>; }
 
 function LawDetailPage({ id, navigate, savedLaws, toggleSave }) {
