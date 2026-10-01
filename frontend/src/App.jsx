@@ -348,7 +348,7 @@ function RegisterPage({ navigate, setUser }) {
       ...(role === "Advocate" && {
         enrollmentNumber: formData.enrollmentNumber,
         stateBarCouncil: formData.stateBarCouncil,
-        practiceArea: formData.practiceArea,
+        primaryPracticeArea: formData.practiceArea,
         primaryCourt: formData.primaryCourt
       })
     };
