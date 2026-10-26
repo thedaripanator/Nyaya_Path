@@ -1,0 +1,28 @@
+# Virtual environment
+venv/
+env/
+ENV/
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environment variables
+.env
+.env.local
+
+# Local vector database storage (if used in local mode)
+data/qdrant_storage/
+
+# Uploaded documents
+data/uploads/lawyer_documents/*
+!data/uploads/lawyer_documents/.gitkeep
+
+# Large datasets
+data/kaggle/supreme_court_judgments/*
+!data/kaggle/supreme_court_judgments/.gitkeep
+
+# OS files
+.DS_Store
+Thumbs.db

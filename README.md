@@ -1,839 +1,218 @@
-# Nyaya-Sum ⚖️
+# Nyaya-Path ⚖️
+## AI-Powered Legal Information & Research System for Indian Law
 
-## AI-Powered Legal Assistant for Indian Court Judgments
-
-Nyaya-Sum is an AI-powered legal assistance platform designed to make Indian legal information easier to search, understand, summarize, and compare.
-
-The system uses **Retrieval-Augmented Generation (RAG)**, semantic search, document processing, embeddings, and Large Language Models (LLMs) to provide source-grounded responses from Indian court judgments.
-
-Nyaya-Sum supports legal document summarization, semantic legal search, similar-case retrieval, case comparison, role-based legal assistance, and multilingual explanations.
-
-> **Disclaimer:** Nyaya-Sum is an educational and informational technology project. It does not provide legal advice and should not be considered a substitute for a qualified legal professional.
+Nyaya-Path is a full-stack, enterprise-grade AI legal platform specifically engineered for the Indian legal system. It bridges the gap between complex Indian jurisprudence and both **citizens** seeking plain-language legal clarity and **legal advocates** requiring deep precedent analysis, case comparison, and structured research briefings.
 
 ---
 
-## 🚀 Features
+## 🌟 Key Capabilities & Role Separation
 
-### 👤 Role-Based Access
+Nyaya-Path uses PostgreSQL for application accounts and records, JWT authentication, and role checks. Advocate accounts are activated immediately after registration, with no separate lawyer approval gate.
 
-Nyaya-Sum provides different functionality depending on the user's role.
+### 👥 1. Citizen / General Public Mode
+Designed to make Indian law accessible, simple, and reassuring:
+* **Plain-Language AI Legal Assistant**: Ask everyday legal questions (FIR procedures, consumer rights, traffic fines, tenancy disputes, bailable vs non-bailable offenses) and receive plain, understandable explanations with relevant statutory sections.
+* **Legal Glossary & Context**: Clear breakdowns of complex legal jargon into everyday language.
+* **Bookmark Statutes & Precedents**: Save key legal sections and judgments to your PostgreSQL profile.
+* **Full Chat History**: Chat records are stored in PostgreSQL for subsequent review.
 
-#### User / Citizen Mode
-
-- Ask legal questions in natural language
-- Get simplified explanations of legal information
-- Summarize lengthy court judgments
-- Search for similar cases
-- View supporting legal sources
-- Receive multilingual explanations
-
-#### Advocate Mode
-
-- Detailed legal explanations
-- Technical legal terminology
-- Similar precedent retrieval
-- Case comparison
-- Detailed judgment analysis
-- Access restricted to verified advocates
-
-#### Admin Mode
-
-- User management
-- Advocate verification
-- Legal document management
-- System administration
+### ⚖️ 2. Advocate / Lawyer Workspace
+Engineered specifically for practicing advocates and legal researchers:
+* **7-Part Structured Legal Research Briefing**: Automatically structures research into:
+  1. *Legal Issue*
+  2. *Applicable Laws / Sections*
+  3. *Relevant Cases & Precedents*
+  4. *Court's Decision (Ratio Decidendi)*
+  5. *Court's Reasoning*
+  6. *Similar Cases*
+  7. *Sources & Citations*
+* **Semantic Precedent Search**: Natural language search against Indian Supreme Court judgments using dense vector embeddings (`sentence-transformers/all-MiniLM-L6-v2`) with cosine similarity scoring.
+* **Case Comparison Matrix**: Compare two landmark judgments side-by-side across facts, legal questions, statutory provisions, court decisions, and judicial rationales.
+* **Isolated Client Document Indexing**: Upload client PDF briefs and case filings. Documents are chunked, embedded, and indexed with strict tenant isolation (`owner_id`), allowing lawyers to search their own case records privately.
+* **Advocate Access**: Advocate signups capture Bar Council Enrollment Numbers, State Bar Councils, and practice areas; research tools are available immediately after registration without manual approval.
 
 ---
 
-## ⚖️ Core Features
+## 🏗️ Architecture & Technology Stack
 
-### 1. AI Legal Document Summarization
-
-Nyaya-Sum converts lengthy Indian court judgments into concise and understandable summaries.
-
-The system can identify:
-
-- Case facts
-- Legal issues
-- Arguments
-- Applicable legal provisions
-- Court reasoning
-- Final judgment
-- Case outcome
-
----
-
-### 2. 🔎 Semantic Legal Search
-
-Users can search for legal cases using natural-language queries instead of relying only on exact keyword matching.
-
-**Example**
-
-```text
-Cases related to compensation for delayed delivery of property
+```
+                               ┌─────────────────────────────────┐
+                               │   React 18 + Vite + Tailwind    │
+                               │        (Port 5173 / 4173)       │
+                               └────────────────┬────────────────┘
+                                                │ REST + JWT
+                                                ▼
+                               ┌─────────────────────────────────┐
+                               │       Spring Boot Backend       │
+                               │           (Port 8100)           │
+                               │  - Spring Security + JWT        │
+                               │  - Spring Data JPA / PostgreSQL │
+                               │  - Role Verification Gate       │
+                               │  - Chat History & Bookmarks     │
+                               └────────┬───────────────┬────────┘
+                                        │               │
+                     Proxy ML Requests  │               │ PostgreSQL
+                                        ▼               ▼
+                       ┌────────────────────┐   ┌────────────────┐
+                       │   FastAPI Service  │   │ App Records   │
+                       │     (Port 8001)    │   │ Users, Profiles│
+                       │ - LangChain RAG    │   │ Chats, Records │
+                       │ - MiniLM Embeddings│   └────────────────┘
+                       │ - Qdrant Vectors   │
+                       │ - Google Gemini LLM│
+                       └────────────────────┘
 ```
 
-The system converts the query into an embedding and retrieves semantically relevant legal documents.
+* **Frontend**: React 18, Vite, Tailwind CSS, Lucide Icons, responsive role-based dashboards.
+* **Core Backend**: Java 17+, Spring Boot 4.x, Spring Security (JWT), Spring Data JPA, Flyway.
+* **Database**: PostgreSQL for users, advocate profiles, chats, bookmarks, and uploaded-document metadata. Qdrant remains the vector database for legal text and embeddings.
+* **AI / ML Service**: Python 3.11+, FastAPI, Uvicorn, LangChain, Qdrant Vector Store, HuggingFace Sentence Transformers (`sentence-transformers/all-MiniLM-L6-v2`), Google Gemini (`gemini-3.5-flash-lite`).
 
 ---
 
-### 3. 🤖 RAG-Based Legal Chatbot
-
-Nyaya-Sum uses Retrieval-Augmented Generation (RAG) to generate responses based on relevant retrieved legal documents.
-
-**RAG Flow**
-
-```text
-User Query
-    ↓
-Query Processing
-    ↓
-Query Embedding
-    ↓
-Semantic Search
-    ↓
-Relevant Legal Chunks
-    ↓
-Context Construction
-    ↓
-LLM
-    ↓
-Grounded Answer
-    ↓
-Source References
-```
-
-The objective is to reduce unsupported responses by grounding the generated answer in retrieved legal documents.
-
----
-
-### 4. 📚 Similar Case & Precedent Retrieval
-
-The system retrieves legally relevant judgments based on semantic similarity.
-
-Users can discover cases with similar:
-
-- Facts
-- Legal issues
-- Applicable provisions
-- Judicial reasoning
-- Case outcomes
-
----
-
-### 5. ⚖️ Case Comparison
-
-Nyaya-Sum allows users to compare multiple legal judgments.
-
-The comparison can include:
-
-- Case facts
-- Legal issues
-- Arguments
-- Applicable laws
-- Court reasoning
-- Judgment
-- Outcome
-
----
-
-### 6. 🌐 Multilingual Legal Explanation
-
-Nyaya-Sum is designed to make complex legal information accessible to users who may not be comfortable reading legal English.
-
-The system can provide simplified and multilingual explanations of retrieved legal information.
-
----
-
-### 7. 🔗 Source References
-
-AI-generated responses are connected to the underlying legal documents used during retrieval.
-
-Users can inspect the relevant judgment or source instead of relying only on the generated response.
-
----
-
-## 🏗️ System Architecture
-
-```text
-                         ┌──────────────────────┐
-                         │    React Frontend    │
-                         └──────────┬───────────┘
-                                    │
-                              REST API
-                                    │
-                                    ▼
-                         ┌──────────────────────┐
-                         │   Spring Boot        │
-                         │   Main Backend       │
-                         └──────────┬───────────┘
-                                    │
-                              REST API
-                                    │
-                                    ▼
-                         ┌──────────────────────┐
-                         │   Python FastAPI     │
-                         │   ML/AI Service      │
-                         └──────────┬───────────┘
-                                    │
-              ┌─────────────────────┼─────────────────────┐
-              │                     │                     │
-              ▼                     ▼                     ▼
-       ┌──────────────┐     ┌──────────────┐      ┌──────────────┐
-       │ PDF/OCR      │     │ Embeddings   │      │ RAG + LLM    │
-       │ Processing   │     │ Sentence     │      │ Generation   │
-       │              │     │ Transformers │      │              │
-       └──────────────┘     └──────┬───────┘      └──────────────┘
-                                   │
-                                   ▼
-                          ┌──────────────────┐
-                          │  Vector Database │
-                          │  FAISS / Chroma  │
-                          └──────────────────┘
-
-                          ┌──────────────────┐
-                          │   PostgreSQL     │
-                          │ Users / Cases /  │
-                          │ Metadata / Chats │
-                          └──────────────────┘
-```
-
----
-
-## 🧩 Architecture Responsibilities
-
-### React Frontend
-
-The React application provides the user interface for:
-
-- User registration and login
-- Legal chatbot
-- Document upload
-- Legal search
-- Judgment summaries
-- Similar case results
-- Case comparison
-- Advocate dashboard
-- Admin dashboard
-
-### Spring Boot Backend
-
-Spring Boot acts as the main application backend and communication layer.
-
-Responsibilities include:
-
-- REST APIs
-- Authentication
-- Authorization
-- Role-based access control
-- User management
-- Advocate registration
-- Advocate verification
-- Case management
-- Document metadata
-- Chat history
-- Database communication
-- Communication with the Python ML service
-
-### Python FastAPI ML Service
-
-FastAPI is used specifically for the ML/NLP/AI modules.
-
-Responsibilities include:
-
-- PDF text extraction
-- OCR processing
-- Text cleaning
-- Text chunking
-- Embedding generation
-- Semantic search
-- Similar-case retrieval
-- RAG pipeline
-- Legal document summarization
-- LLM integration
-- Multilingual processing
-
----
-
-## 🔄 Backend Communication
-
-The system uses a service-based architecture.
-
-```text
-React Frontend
-      │
-      │ HTTP / REST
-      ▼
-Spring Boot Backend
-      │
-      │ HTTP / REST
-      ▼
-Python FastAPI ML Service
-      │
-      ├── Embeddings
-      ├── Vector Search
-      ├── RAG
-      ├── Summarization
-      └── LLM
-```
-
-Spring Boot acts as the central application backend, while FastAPI provides specialized AI/ML capabilities.
-
----
-
-## 📄 Legal Document Processing Pipeline
-
-Court judgments are processed before they become searchable.
-
-```text
-Indian Court Judgment PDF
-          ↓
-    Text Extraction
-          ↓
-      OCR if needed
-          ↓
-     Text Cleaning
-          ↓
-       Chunking
-          ↓
- Embedding Generation
-          ↓
-     Vector Storage
-          ↓
-    Semantic Search
-```
-
----
-
-## 🧠 RAG Pipeline
-
-Nyaya-Sum uses Retrieval-Augmented Generation.
-
-### Indexing Phase
-
-```text
-Judgment PDF
-     ↓
-Text Extraction
-     ↓
-Cleaning
-     ↓
-Chunking
-     ↓
-Sentence Transformer
-     ↓
-Embeddings
-     ↓
-Vector Database
-```
-
-### Query Phase
-
-```text
-User Question
-     ↓
-Query Processing
-     ↓
-Query Embedding
-     ↓
-Vector Similarity Search
-     ↓
-Top-K Relevant Legal Chunks
-     ↓
-Context Construction
-     ↓
-LLM
-     ↓
-Generated Response
-     ↓
-Source References
-```
-
----
-
-## 🛠️ Technology Stack
-
-### Frontend
-
-- React.js
-- JavaScript
-- HTML5
-- CSS3
-- Tailwind CSS
-
-### Main Backend
-
-- Java
-- Spring Boot
-- Spring Security
-- Spring Data JPA
-- REST APIs
-- Maven
-
-### AI / ML Service
-
-- Python 3.x
-- FastAPI
-- Sentence Transformers
-- PyMuPDF
-- Tesseract OCR
-
-### Large Language Models
-
-The ML service can integrate with:
-
-- OpenAI GPT models
-- Anthropic Claude
-- Self-hosted LLaMA models
-
-### Embeddings
-
-- Sentence Transformers
-- Transformer-based embedding models
-
-### Vector Database
-
-- FAISS
-- ChromaDB
-
-### Relational Database
-
-- PostgreSQL
-
-### Development Tools
-
-- Git
-- GitHub
-- Docker
-- Postman
-- IntelliJ IDEA
-- VS Code
-
-### Operating Systems
-
-- Windows
-- Linux
-
----
-
-## 🗃️ Legal Dataset
-
-Nyaya-Sum is designed to work with Indian court judgments.
-
-The legal document collection can contain:
-
-- Judgment ID
-- Case Title
-- Court
-- Case Number
-- Citation
-- Judges
-- Decision Date
-- Judgment Text
-- Source PDF
-- Source URL
-- Language
-
-The original source reference is maintained so that users can verify information against the underlying judgment.
-
----
-
-## 📊 Database Design
-
-### PostgreSQL
-
-PostgreSQL stores application and structured legal data.
-
-Example entities:
-
-- User
-- Advocate
-- AdvocateVerification
-- Judgment
-- CaseMetadata
-- ChatHistory
-- SourceReference
-
-### Vector Database
-
-The vector database stores embeddings of legal-document chunks.
-
-```text
-Judgment
-    ↓
-Text Chunks
-    ↓
-Embeddings
-    ↓
-Vector Database
-```
-
-This allows semantic similarity search.
-
----
-
-## 🔐 Security
-
-Nyaya-Sum uses role-based access control.
-
-```text
-USER
- ├── Legal Search
- ├── Legal Chatbot
- ├── Document Summarization
- └── Similar Cases
-
-
-VERIFIED ADVOCATE
- ├── Legal Search
- ├── Legal Chatbot
- ├── Detailed Case Analysis
- ├── Similar Cases
- └── Case Comparison
-
-
-ADMIN
- ├── User Management
- ├── Advocate Verification
- └── Document Management
-```
-
-Authentication and authorization are handled by Spring Security.
-
----
-
-## 🔌 API Communication
-
-### Frontend → Spring Boot
-
-The React frontend communicates with Spring Boot through REST APIs.
-
-Example:
-
-```text
-POST /api/auth/register
-POST /api/auth/login
-POST /api/chat
-GET  /api/judgments
-GET  /api/judgments/{id}
-POST /api/cases/compare
-```
-
-### Spring Boot → FastAPI
-
-Spring Boot communicates with the ML service through REST APIs.
-
-Example:
-
-```text
-POST /ml/embed
-POST /ml/search
-POST /ml/summarize
-POST /ml/chat
-POST /ml/similar-cases
-POST /ml/compare
-```
-
-The exact endpoints may change as development progresses.
-
----
-
-## 📂 Project Structure
-
-```text
-nyaya-sum/
-│
-├── frontend/
-│   ├── src/
-│   ├── public/
-│   ├── package.json
-│   └── README.md
-│
-├── backend/
-│   ├── src/
-│   │   ├── main/
-│   │   │   ├── java/
-│   │   │   └── resources/
-│   │   └── test/
-│   ├── pom.xml
-│   └── README.md
-│
-├── ml-service/
-│   ├── app/
-│   │   ├── api/
-│   │   ├── models/
-│   │   ├── services/
-│   │   ├── rag/
-│   │   ├── embeddings/
-│   │   └── utils/
-│   │
-│   ├── data/
-│   ├── requirements.txt
-│   └── README.md
-│
-├── docs/
-│   ├── architecture/
-│   ├── diagrams/
-│   └── api/
-│
-├── .gitignore
-├── docker-compose.yml
-└── README.md
-```
-
----
-
-## ⚙️ Getting Started
+## 🚀 Quick Start Guide
 
 ### Prerequisites
+* **Java 17 or 21** installed and configured in `PATH`.
+* **Node.js 18+ and npm** installed.
+* **Python 3.11+** installed.
+* **PostgreSQL 15+** running with a `nyaya_path` database created.
 
-Install the following:
+---
 
-- Java 17+
-- Maven
-- Python 3.x
-- Node.js
-- npm
-- PostgreSQL
-- Git
+### Option A: 1-Click Launch (Recommended on Windows)
+Simply double-click the included batch script:
+```cmd
+start_all.bat
+```
+This automatically launches all three services in separate, dedicated terminal windows:
+1. Python FastAPI ML Service on `http://127.0.0.1:8001`
+2. Spring Boot Backend on `http://127.0.0.1:8100`
+3. React Frontend on `http://localhost:5173`
 
-### 1. Clone the Repository
+The launcher enables Spring's `dev` profile so the local development account seeder runs. Do not enable this profile in production.
+It waits for the Python ML health endpoint and Spring Boot auth endpoint to become ready before opening the frontend, so legal research, registration, and login are not attempted while their services are still starting. If either service does not start within two minutes, check that service's terminal for dependency or configuration errors.
 
-```bash
-git clone https://github.com/<your-username>/nyaya-sum.git
-cd nyaya-sum
+To stop all services at any time, run:
+```cmd
+stop_all.bat
 ```
 
-### 2. Start PostgreSQL
+---
 
-Create a PostgreSQL database for the application.
+### Option B: Manual Service Startup
 
-Example database name:
+#### 1. Configure local secrets and databases
 
-```text
-nyaya_sum
-```
+Edit `backend/Nyaya-Path/.env` and `ml-service/.env` before starting. Put a random `JWT_SECRET` of at least 32 characters in the backend file, and put the same strong `ML_SERVICE_API_KEY` in both files. The backend has no signing-secret fallback. The ML file is configured for local Qdrant at `localhost:6333`; for hosted Qdrant, replace the URL and add its API key.
 
-Configure the database connection in the Spring Boot application.
-
-### 3. Run Spring Boot Backend
-
-```bash
-cd backend
-mvn clean install
-mvn spring-boot:run
-```
-
-The Spring Boot backend will run on its configured port.
-
-Example:
-
-```text
-http://localhost:8080
-```
-
-### 4. Run the Python ML Service
-
-Open a new terminal.
-
+#### 2. Start the Python FastAPI ML Service
 ```bash
 cd ml-service
-```
 
-Create a virtual environment:
-
-```bash
+# Create virtual environment if not already created
 python -m venv venv
-```
 
-Windows:
+# Activate virtual environment
+# Windows:
+.\venv\Scripts\activate
+# Linux/macOS:
+# source venv/bin/activate
 
-```bash
-venv\Scripts\activate
-```
-
-Linux / macOS:
-
-```bash
-source venv/bin/activate
-```
-
-Install dependencies:
-
-```bash
+# Install dependencies
 pip install -r requirements.txt
+
+# Start FastAPI server on port 8001
+uvicorn app.main:app --host 127.0.0.1 --port 8001
 ```
 
-Start FastAPI:
-
+#### 3. Start the Spring Boot Backend
 ```bash
-uvicorn app.main:app --reload
+cd backend/Nyaya-Path
+
+# Use the dev profile for local development seed accounts only. Do not use in production.
+# Command Prompt:
+set SPRING_PROFILES_ACTIVE=dev
+# PowerShell:
+$env:SPRING_PROFILES_ACTIVE = "dev"
+
+# Build and run
+.\mvnw.cmd spring-boot:run
+# Or run the pre-built JAR:
+# java -jar target\Nyaya-Path-0.0.1-SNAPSHOT.jar
 ```
+The backend starts on `http://localhost:8100`.
 
-Example:
-
-```text
-http://localhost:8000
-```
-
-### 5. Run the React Frontend
-
-Open another terminal.
-
+#### 4. Start the React Frontend
 ```bash
 cd frontend
+
+# Install dependencies (first time only)
 npm install
+
+# Start Vite development server
 npm run dev
 ```
-
-The frontend will start using the development server.
+Open `http://localhost:5173` in your browser.
 
 ---
 
-## 🔑 Environment Variables
+## 🔐 Authentication & Roles Setup
 
-Create environment variables for sensitive configuration.
+When opening the app for the first time:
+1. Click **Sign Up** or navigate to any feature (e.g. *Plain Legal AI* or *Legal Research AI*).
+2. Choose your role:
+   * **Citizen**: Enter Name, Email, Password, and City.
+   * **Advocate**: Enter Name, Email, Password, Bar Council Enrollment Number, State Bar Council, Practice Area, and Court.
+3. The backend stores the JWT in an HttpOnly cookie; the frontend does not read or store the token.
+4. The navigation bar and dashboard adapt instantly to your role.
 
-Example:
+---
 
-```text
-DATABASE_URL=your_database_url
-LLM_API_KEY=your_llm_api_key
-ML_SERVICE_URL=http://localhost:8000
-VECTOR_DB_PATH=./data/vector_db
+## 🤖 Environment Variables & Gemini AI Key
+
+In `ml-service/.env`:
+```ini
+# Hosted Qdrant (recommended for the full legal corpus)
+QDRANT_URL=https://your-cluster.qdrant.io
+QDRANT_API_KEY=your_qdrant_api_key
+QDRANT_COLLECTION=nyaya_path
+QDRANT_LOCAL_MODE=false
+
+# Sentence Transformer Embeddings
+EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
+
+# Google Gemini API Key for LLM Generation
+GOOGLE_API_KEY=YOUR_GEMINI_API_KEY_HERE
+GEMINI_MODEL=gemini-3.5-flash-lite
+ML_SERVICE_API_KEY=the_same_random_service_token_as_the_backend
 ```
 
-Never commit API keys, passwords, database credentials, or other sensitive information to GitHub.
+The backend also needs the matching `ML_SERVICE_API_KEY`; the ML API rejects requests without it. Keep secrets out of source control. Local embedded Qdrant is for development only; production and Kaggle ingestion should use hosted Qdrant.
 
-Add environment files to `.gitignore`.
+For production, set `NYAYA_COOKIE_SECURE=true` so the session cookie is sent only over HTTPS.
 
-Example:
-
-```text
-.env
-.env.*
-```
+To bootstrap the first administrator, register the intended account, then promote it directly in PostgreSQL (`UPDATE users SET role='Admin' WHERE email='admin@example.com';`) and sign in again. Advocate access requires no manual approval step in the app flow.
 
 ---
 
-## 🧪 Testing
+## 📚 Kaggle Supreme Court Judgments Ingestion
 
-Testing will be performed at multiple levels.
+To populate hosted Qdrant from a Kaggle Notebook without keeping the 5 GB source files on your computer:
 
-### Spring Boot
+1. Attach the Kaggle judgments dataset as a notebook input.
+2. Add `QDRANT_URL` and `QDRANT_API_KEY` as Kaggle Secrets.
+3. Clone or upload this repository in the notebook and install `ml-service/requirements.txt`.
+4. Run `python ml-service/scripts/load_kaggle_data.py --data-dir /kaggle/input/<dataset-slug> --batch-size 50`, replacing the path with Kaggle's mounted input directory.
 
-- Unit testing
-- Integration testing
-- REST API testing
-- Authentication testing
-- Authorization testing
+Use Kaggle's `UserSecretsClient` in a Python notebook cell to load `QDRANT_URL` and `QDRANT_API_KEY` into `os.environ` before running the command. The script reads the attached files and batches vector inserts. Kaggle's runtime storage is temporary and separate from your PC. Check the dataset license and verify extracted metadata on a sample before full ingestion. The application and notebook must point to the same hosted Qdrant collection.
 
-### FastAPI ML Service
+### Existing MongoDB data
 
-- Embedding tests
-- Retrieval tests
-- RAG tests
-- Summarization tests
-- Similar-case retrieval tests
+The backend now writes new records to PostgreSQL. To preserve records from an existing MongoDB database, first start the backend once to let Flyway create the SQL schema, then use `backend/Nyaya-Path/migration/migrate_mongo_to_postgres.py` with `MONGODB_URI`, `MONGODB_DATABASE`, and `POSTGRES_DSN`. Verify copied row counts and sample records before retiring MongoDB. The script copies application records; it does not move uploaded PDF files or Qdrant vectors.
 
-### React
+The services load their local `.env` files at startup. Fill in the PostgreSQL password, a random JWT secret, a Gemini API key, and the same random ML service key in both files, then run `start_all.bat`.
 
-- Component testing
-- API integration testing
-- UI testing
+## 🧪 Verification
 
----
-
-## 📈 Evaluation
-
-The AI components can be evaluated using:
-
-### Retrieval
-
-- Precision@K
-- Recall@K
-- Similarity scores
-
-### Summarization
-
-- ROUGE
-- BERTScore
-- Human evaluation
-
-### Question Answering
-
-- Answer relevance
-- Faithfulness
-- Context relevance
-- Citation correctness
-
----
-
-## 🚀 Future Enhancements
-
-- Support for additional High Court judgments
-- Improved multilingual support
-- Indian-language legal translation
-- Advanced legal citation extraction
-- Improved similar-case retrieval
-- Legal timeline generation
-- Voice-based legal queries
-- Advanced RAG evaluation
-- Domain-specific legal model fine-tuning
-- Better hallucination detection
-- Production deployment
-- AI observability and monitoring
-
----
-
-## 🤝 Contribution
-
-Contributions, suggestions, and improvements are welcome.
-
-**Development workflow**
-
-```text
-Fork
-  ↓
-Create Feature Branch
-  ↓
-Implement Changes
-  ↓
-Test
-  ↓
-Commit
-  ↓
-Push
-  ↓
-Create Pull Request
-```
-
----
-
-## 📜 License
-
-This project is intended for educational, research, and development purposes.
-
-The licenses and attribution requirements of external datasets, models, APIs, and libraries used by the project must be respected.
-
----
-
-## ⚠️ Legal Disclaimer
-
-Nyaya-Sum is an AI-based legal information and research tool.
-
-The system does not replace a qualified advocate or legal professional.
-
-AI-generated information may contain errors or omissions. Users should verify important information against the original legal sources and consult a qualified legal professional for advice concerning specific legal matters.
-
----
-
-## 🎯 Project Goal
-
-Making Indian legal information easier to search, understand, summarize, compare, and access through AI.
-
----
-
-⭐ **Nyaya-Sum**
-
-*Search. Understand. Compare. Verify.*
+Run backend checks with `backend/Nyaya-Path/mvnw.cmd test`, build the frontend with `npm run build` from `frontend`, and run ML service checks from `ml-service/scripts`. The former machine-specific end-to-end test path was outside this repository and has been removed.

@@ -1,248 +1,374 @@
 import { MOCK_LAWS, MOCK_JUDGMENTS } from "../data/mockData";
 
-const API_BASE_URL = "http://localhost:8100/api";
+const BACKEND_BASE_URL = import.meta.env.DEV
+  ? "/api"
+  : import.meta.env.VITE_BACKEND_BASE_URL || "/api";
+
+function getAuthHeader() {
+  return {};
+}
+
+function apiFetch(url, options = {}) {
+  return fetch(url, { ...options, credentials: "include" });
+}
+
+function extractErrorMessage(data, fallback) {
+  if (!data) return fallback;
+  if (typeof data.message === "string" && data.message.trim()) return data.message;
+  if (typeof data.detail === "string" && data.detail.trim()) return data.detail;
+  if (Array.isArray(data.detail) && data.detail[0]?.msg) return data.detail[0].msg;
+  if (typeof data.error === "string" && data.error.trim()) return data.error;
+  return fallback;
+}
+
+async function parseJsonResponse(response, fallbackError) {
+  const text = await response.text();
+  let data = {};
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      if (!response.ok) {
+        if (response.status >= 500) {
+          throw new Error(`The backend could not complete this request (HTTP ${response.status}). Check that Spring Boot and PostgreSQL are running, then try again.`);
+        }
+        throw new Error(`${fallbackError || "Request failed."} (HTTP ${response.status}).`);
+      }
+      throw new Error("The server returned an invalid response. Please try again.");
+    }
+  }
+  if (!response.ok) {
+    const message = extractErrorMessage(data, fallbackError || `Request failed (${response.status}).`);
+    throw new Error(response.status >= 500 && message === fallbackError
+      ? `The backend could not complete this request (HTTP ${response.status}). Check that Spring Boot and PostgreSQL are running, then try again.`
+      : message);
+  }
+  return data;
+}
+
+function persistSession(token, user) {
+  localStorage.removeItem("token");
+  localStorage.removeItem("nyaya_token");
+  if (user) {
+    localStorage.setItem("nyaya_user", JSON.stringify(user));
+  }
+}
 
 export const apiService = {
+  // --- AUTHENTICATION (PostgreSQL) ---
 
-
-  // LOGIN
   async login(email, password) {
+    let response;
+    try {
+      response = await apiFetch(`${BACKEND_BASE_URL}/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
+      });
+    } catch {
+      throw new Error("Cannot reach the backend. Make sure the Spring Boot server is running on port 8100.");
+    }
 
-    const response = await fetch(`${API_BASE_URL}/auth/login`, {
+    const data = await parseJsonResponse(response, "Invalid credentials. Please verify your email and password.");
+
+    const user = data.user
+      ? {
+          ...data.user,
+          advocateDetails: data.advocateDetails || data.user.advocateDetails || null,
+        }
+      : null;
+
+    if (!user) {
+      throw new Error(data.message || "Login succeeded but no user profile was returned. Please try again.");
+    }
+
+    persistSession(data.token, user);
+    return { success: true, user };
+  },
+
+  async register(formData) {
+    let response;
+    try {
+      response = await apiFetch(`${BACKEND_BASE_URL}/auth/register`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      });
+    } catch {
+      throw new Error("Cannot reach the backend. Make sure the Spring Boot server is running on port 8100.");
+    }
+
+    const data = await parseJsonResponse(response, "Registration failed. Please check the provided information.");
+
+    const registeredUser = {
+      id: data.userId || data.user?.id,
+      name: data.name || data.user?.name || formData.name,
+      email: data.email || data.user?.email || formData.email,
+      role: data.role || data.user?.role || formData.role,
+      advocateDetails: formData.role === "Advocate" ? {
+        enrollmentNumber: formData.enrollmentNumber,
+        stateBarCouncil: formData.stateBarCouncil,
+        primaryPracticeArea: formData.primaryPracticeArea,
+        primaryCourt: formData.primaryCourt,
+        enrollmentStatus: "VERIFIED",
+      } : null,
+    };
+
+    persistSession(data.token, registeredUser);
+    return { success: true, user: registeredUser };
+  },
+
+  async getCurrentUser() {
+    let response;
+    try {
+      response = await apiFetch(`${BACKEND_BASE_URL}/auth/me`, {
+        headers: {
+          ...getAuthHeader(),
+        },
+      });
+    } catch {
+      return null;
+    }
+    if (response.status === 401 || response.status === 403) {
+      throw new Error("Session expired. Please log in again.");
+    }
+    const data = await parseJsonResponse(response, "Session expired. Please log in again.");
+    return {
+      id: data.id || data.user?.id,
+      name: data.name || data.user?.name,
+      email: data.email || data.user?.email,
+      role: data.role || data.user?.role,
+      advocateDetails: data.advocateDetails || data.advocateProfile || null,
+    };
+  },
+
+  logout() {
+    apiFetch(`${BACKEND_BASE_URL}/auth/logout`, { method: "POST" }).catch(() => {});
+    localStorage.removeItem("nyaya_user");
+    localStorage.removeItem("nyaya_token");
+    localStorage.removeItem("token");
+  },
+
+  // --- CITIZEN AI ASSISTANT ---
+
+  async askCitizenAI(question, language = "English") {
+    let response;
+    try {
+      response = await apiFetch(`${BACKEND_BASE_URL}/ai/citizen/ask`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeader(),
+        },
+        body: JSON.stringify({ question, language, k: 5 }),
+      });
+    } catch {
+      throw new Error("Cannot reach the backend. Please confirm the API server is running.");
+    }
+
+    const data = await parseJsonResponse(response, "Could not process your question.");
+    const innerData = data.data || data;
+    return {
+      reply: innerData.answer || innerData.reply || "No response received.",
+      sources: innerData.sources || [],
+      question,
+      language,
+    };
+  },
+
+  // --- LAWYER AI RESEARCH ---
+
+  async askLawyerAI(question, k = 5) {
+    let response;
+    try {
+      response = await apiFetch(`${BACKEND_BASE_URL}/ai/lawyer/ask`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeader(),
+        },
+        body: JSON.stringify({ question, k }),
+      });
+    } catch {
+      throw new Error("Cannot reach the backend. Please confirm the API server is running.");
+    }
+
+    const data = await parseJsonResponse(response, "Could not execute legal research query.");
+    const innerData = data.data || data;
+    return {
+      answer: innerData.answer || innerData.comparison || "",
+      sources: innerData.sources || [],
+    };
+  },
+
+  // --- LAWYER CASE SEARCH ---
+
+  async searchCases(query, k = 10) {
+    let response;
+    try {
+      response = await apiFetch(`${BACKEND_BASE_URL}/ai/lawyer/search-cases`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeader(),
+        },
+        body: JSON.stringify({ query, k }),
+      });
+    } catch {
+      throw new Error("Cannot reach the backend. Please confirm the API server is running.");
+    }
+
+    const data = await parseJsonResponse(response, "Precedent search failed.");
+    const innerData = data.data || data;
+    return innerData.cases || [];
+  },
+
+  // --- LAWYER CASE COMPARISON ---
+
+  async compareCases(caseA, caseB, comparisonQuery = null) {
+    let response;
+    try {
+      response = await apiFetch(`${BACKEND_BASE_URL}/ai/lawyer/compare-cases`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeader(),
+        },
+        body: JSON.stringify({ caseA, caseB, comparisonQuery, k: 5 }),
+      });
+    } catch {
+      throw new Error("Cannot reach the backend. Please confirm the API server is running.");
+    }
+
+    const data = await parseJsonResponse(response, "Case comparison failed.");
+    const innerData = data.data || data;
+    return {
+      comparison: innerData.comparison || innerData.answer || "",
+      sources_case_a: innerData.sources_case_a || [],
+      sources_case_b: innerData.sources_case_b || [],
+    };
+  },
+
+  // --- LAWYER DOCUMENT UPLOAD (Isolated) ---
+
+  async uploadLawyerDocument(file, metadata = {}) {
+    const formData = new FormData();
+    formData.append("file", file);
+    if (metadata.caseName) formData.append("case_name", metadata.caseName);
+    if (metadata.court) formData.append("court", metadata.court);
+    if (metadata.year) formData.append("year", metadata.year);
+    if (metadata.citation) formData.append("citation", metadata.citation);
+
+    let response;
+    try {
+      response = await apiFetch(`${BACKEND_BASE_URL}/documents/upload`, {
+        method: "POST",
+        headers: {
+          ...getAuthHeader(),
+        },
+        body: formData,
+      });
+    } catch {
+      throw new Error("Cannot reach the backend. Please confirm the API server is running.");
+    }
+
+    return parseJsonResponse(response, "Failed to upload and index document.");
+  },
+
+  async getMyUploadedDocuments() {
+    let response;
+    try {
+      response = await apiFetch(`${BACKEND_BASE_URL}/documents/my-documents`, {
+        headers: {
+          ...getAuthHeader(),
+        },
+      });
+    } catch {
+      throw new Error("Cannot reach the backend. Please confirm the API server is running.");
+    }
+
+    const documents = await parseJsonResponse(response, "Could not load your uploaded documents.");
+    if (!Array.isArray(documents)) {
+      throw new Error("The server returned an invalid document list. Please try again.");
+    }
+    return documents;
+  },
+
+  // --- SAVED BOOKMARKS (PostgreSQL) ---
+
+  async getSavedItems() {
+    let response;
+    try {
+      response = await apiFetch(`${BACKEND_BASE_URL}/saved`, {
+        headers: {
+          ...getAuthHeader(),
+        },
+      });
+    } catch {
+      throw new Error("Cannot reach the backend. Please confirm the API server is running.");
+    }
+
+    const items = await parseJsonResponse(response, "Could not load your saved items.");
+    if (!Array.isArray(items)) {
+      throw new Error("The server returned an invalid saved-items list. Please try again.");
+    }
+    return items;
+  },
+
+  async toggleSavedItem(item) {
+    const response = await apiFetch(`${BACKEND_BASE_URL}/saved`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        ...getAuthHeader(),
       },
       body: JSON.stringify({
-        email,
-        password,
+        itemType: item.itemType || (item.category ? "LAW" : "JUDGMENT"),
+        itemId: item.id || item.itemId,
+        title: item.title || item.caseName,
+        subtitle: item.number || item.court || "",
+        category: item.category || item.court || "Legal",
       }),
     });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.message || data || "Login failed");
+    const result = await parseJsonResponse(response, "Could not update your saved items.");
+    if (typeof result.saved !== "boolean") {
+      throw new Error("The server returned an invalid saved-item response. Please try again.");
     }
-
-    // Store JWT
-    if (data.token) {
-      localStorage.setItem("token", data.token);
-    }
-
-    // Store user information
-    if (data.user) {
-      localStorage.setItem("user", JSON.stringify(data.user));
-    }
-
-    return {
-      success: true,
-      user: data.user,
-      token: data.token,
-    };
+    return result;
   },
 
-
-  // REGISTER
-  async register(data) {
-
-    const response = await fetch(`${API_BASE_URL}/auth/register`, {
-      method: "POST",
+  async deleteSavedItem(itemId) {
+    const response = await apiFetch(`${BACKEND_BASE_URL}/saved/${itemId}`, {
+      method: "DELETE",
       headers: {
-        "Content-Type": "application/json",
+        ...getAuthHeader(),
       },
-      body: JSON.stringify(data),
     });
-
-    const result = await response.json();
-
     if (!response.ok) {
-      throw new Error(result.message || result || "Registration failed");
+      return { success: false };
     }
-
-    return {
-      success: true,
-      user: {
-        id: result.userId,
-        name: result.name,
-        email: result.email,
-        role: result.role,
-      },
-      message: result.message,
-    };
+    return response.json();
   },
 
+  // --- LAWS & JUDGMENTS ---
 
-  // LAWS
   async getLaws() {
-    await new Promise((resolve) => setTimeout(resolve, 300));
     return MOCK_LAWS;
   },
 
-
   async getLawById(id) {
-    await new Promise((resolve) => setTimeout(resolve, 250));
-    return MOCK_LAWS.find((law) => law.id === id) || MOCK_LAWS[0];
+    return MOCK_LAWS.find((l) => l.id === id) || MOCK_LAWS[0];
   },
 
-
-  // JUDGMENTS
   async getJudgments() {
-    await new Promise((resolve) => setTimeout(resolve, 300));
     return MOCK_JUDGMENTS;
   },
 
-
   async getJudgmentById(id) {
-    await new Promise((resolve) => setTimeout(resolve, 250));
-    return (
-      MOCK_JUDGMENTS.find((item) => item.id === id) ||
-      MOCK_JUDGMENTS[0]
-    );
-  },
-
-
-  // NYAYA AI
-  async askNyayaAI(query, language = "English") {
-
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-    const q = query.toLowerCase();
-
-    let result = {
-      intent: "General Legal Query",
-      confidence: 0.91,
-      topic: "General Legal Information",
-      entities: [
-        {
-          type: "topic",
-          value: "Legal Query",
-        },
-      ],
-      reply:
-        "This is a frontend demonstration response. A future NLP/RAG backend should retrieve verified legal sources before producing an answer.",
-      sources: [
-        {
-          title: "Verified legal source",
-          section: "To be connected",
-          type: "Future API",
-        },
-      ],
-    };
-
-    if (
-      q.includes("salary") ||
-      q.includes("employer") ||
-      q.includes("wage")
-    ) {
-      result = {
-        intent: "Employment Query",
-        confidence: 0.94,
-        topic: "Labour Law",
-        entities: [
-          {
-            type: "concept",
-            value: "Unpaid Wages",
-          },
-          {
-            type: "org",
-            value: "Employer",
-          },
-        ],
-        reply:
-          "Your question appears related to employment and unpaid wages. In the production version, Nyaya Path should retrieve the applicable current labour provisions and explain possible procedures with source citations.",
-        sources: [
-          {
-            title: "Industrial Disputes Act, 1947",
-            section: "Relevant provision",
-            type: "Act",
-          },
-        ],
-      };
-    } else if (
-      q.includes("landlord") ||
-      q.includes("rent") ||
-      q.includes("deposit")
-    ) {
-      result = {
-        intent: "Rental / Property Query",
-        confidence: 0.96,
-        topic: "Property Law",
-        entities: [
-          {
-            type: "concept",
-            value: "Rental Dispute",
-          },
-          {
-            type: "person",
-            value: "Landlord/Tenant",
-          },
-        ],
-        reply:
-          "Your question appears related to a rental or security-deposit dispute. A production RAG system should identify the applicable state law, tenancy agreement terms and verified legal sources before suggesting next steps.",
-        sources: [
-          {
-            title: "Applicable tenancy law",
-            section: "To be retrieved",
-            type: "Future RAG Source",
-          },
-        ],
-      };
-    }
-
-    return {
-      query,
-      language,
-      ...result,
-    };
-  },
-
-
-
-  // DOCUMENT ANALYSIS
-
-  async uploadAndAnalyzeDoc(file) {
-
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-
-    return {
-      id: `doc-${Date.now()}`,
-      fileName: file.name,
-      uploadDate: new Date().toISOString().split("T")[0],
-      fileSize: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
-      summary:
-        "Demo analysis: a future document-processing/NLP service will extract clauses, entities, dates and legal references.",
-      clauses: [
-        {
-          title: "Termination Clause",
-          snippet: "Sample extracted termination provision.",
-        },
-        {
-          title: "Dispute Resolution",
-          snippet: "Sample extracted dispute-resolution provision.",
-        },
-        {
-          title: "Indemnity",
-          snippet: "Sample extracted indemnity provision.",
-        },
-      ],
-      entities: [
-        {
-          type: "org",
-          label: "Organization",
-          value: "Sample Organization",
-        },
-        {
-          type: "law",
-          label: "Governing Law",
-          value: "To be detected",
-        },
-        {
-          type: "location",
-          label: "Jurisdiction",
-          value: "To be detected",
-        },
-      ],
-    };
+    return MOCK_JUDGMENTS.find((j) => j.id === id) || MOCK_JUDGMENTS[0];
   },
 };

@@ -2,6 +2,7 @@ package com.example.Nyaya_Path.dto;
 
 
 import com.example.Nyaya_Path.Entity.UserRole;
+import com.fasterxml.jackson.annotation.JsonAlias;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -12,6 +13,7 @@ import lombok.Data;
 public class RegisterRequest {
 
     @NotBlank(message = "Name is required")
+    @JsonAlias({"fullName", "name"})
     private String name;
 
     @NotBlank(message = "Email is required")

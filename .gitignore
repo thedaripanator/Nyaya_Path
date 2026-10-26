@@ -1,0 +1,22 @@
+# Python environments, caches, and local secrets
+**/venv/
+**/__pycache__/
+**/*.py[cod]
+**/.env
+**/.env.*
+!**/.env.example
+
+# Local legal corpus, embeddings, and uploaded client files
+ml-service/data/kaggle/supreme_court_judgments/*
+!ml-service/data/kaggle/supreme_court_judgments/.gitkeep
+ml-service/data/qdrant_storage/
+ml-service/data/uploads/lawyer_documents/*
+!ml-service/data/uploads/lawyer_documents/.gitkeep
+
+# Previous underscore-named Python environment directory. The maintained source is ml-service/.
+ml_service/
+
+# Frontend/build outputs
+frontend/node_modules/
+frontend/dist/
+backend/Nyaya-Path/target/
