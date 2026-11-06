@@ -7,15 +7,21 @@
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
         <processorPath useClasspath="false">
-          <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/1.18.46/lombok-1.18.46.jar" />
+          <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/1.18.42/lombok-1.18.42.jar" />
         </processorPath>
         <module name="Nyaya-Path" />
       </profile>
     </annotationProcessing>
+    <bytecodeTargetLevel>
+      <module name="Nyaya-Path.main" target="17" />
+      <module name="Nyaya-Path.test" target="17" />
+    </bytecodeTargetLevel>
   </component>
   <component name="JavacSettings">
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
-      <module name="Nyaya-Path" options="-parameters" />
+      <module name="Nyaya-Path" options="-parameters --add-modules java.sql" />
+      <module name="Nyaya-Path.main" options="-parameters" />
+      <module name="Nyaya-Path.test" options="-parameters" />
     </option>
   </component>
 </project>

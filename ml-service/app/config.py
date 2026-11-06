@@ -18,6 +18,12 @@ EMBEDDING_MODEL: str = os.getenv(
     "EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2"
 )
 
+# Local Qwen3 model configuration
+MODEL_API_URL: str = os.getenv(
+    "MODEL_API_URL",
+    "http://localhost:8080/v1/chat/completions"
+)
+
 # LLM Configuration (Google Gemini)
 GOOGLE_API_KEY: str = os.getenv("GOOGLE_API_KEY", "")
 GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")

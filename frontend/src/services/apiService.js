@@ -371,4 +371,138 @@ export const apiService = {
   async getJudgmentById(id) {
     return MOCK_JUDGMENTS.find((j) => j.id === id) || MOCK_JUDGMENTS[0];
   },
-};
+
+
+  // --- INDIAN ACTS / LEGAL INFORMATION API ---
+
+  async getLegalActs(page = 0, size = 20) {
+    let response;
+
+    try {
+      response = await apiFetch(
+        `${BACKEND_BASE_URL}/legal/documents?page=${page}&size=${size}`,
+        { headers: { ...getAuthHeader() } }
+      );
+    } catch {
+      throw new Error("Cannot reach the backend. Please confirm the API server is running.");
+    }
+
+    return parseJsonResponse(response, "Could not load Indian Acts.");
+  },
+
+  async searchLegalActs(query, page = 0, size = 20) {
+    if (!query?.trim()) {
+      return this.getLegalActs(page, size);
+    }
+
+    let response;
+
+    try {
+      response = await apiFetch(
+        `${BACKEND_BASE_URL}/legal/search?q=${encodeURIComponent(query.trim())}&page=${page}&size=${size}`,
+        { headers: { ...getAuthHeader() } }
+      );
+    } catch {
+      throw new Error("Cannot reach the backend. Please confirm the API server is running.");
+    }
+
+    return parseJsonResponse(response, "Could not search Indian Acts.");
+  },
+
+  async getLegalActById(actId) {
+    let response;
+
+    try {
+      response = await apiFetch(
+        `${BACKEND_BASE_URL}/legal/documents/${encodeURIComponent(actId)}`,
+        { headers: { ...getAuthHeader() } }
+      );
+    } catch {
+      throw new Error("Cannot reach the backend. Please confirm the API server is running.");
+    }
+
+    return parseJsonResponse(response, "Could not load the Act details.");
+  },
+
+  async getLegalProvisions(actId, page = 0, size = 50) {
+    let response;
+
+    try {
+      response = await apiFetch(
+        `${BACKEND_BASE_URL}/legal/documents/${encodeURIComponent(actId)}/provisions?page=${page}&size=${size}`,
+        { headers: { ...getAuthHeader() } }
+      );
+    } catch {
+      throw new Error("Cannot reach the backend. Please confirm the API server is running.");
+    }
+
+    return parseJsonResponse(response, "Could not load the Act provisions.");
+  },
+  // --- INDIAN ACTS / LEGAL INFORMATION API ---
+    // --- BNS / BNSS SECTIONS API ---
+
+    async getSectionsPage(act, page = 0, size = 12, language = "en", search = "") {
+      if (!["All", "BNS", "BNSS"].includes(act)) {
+        throw new Error("Invalid Act. Choose All, BNS or BNSS.");
+      }
+
+      let response;
+
+      try {
+        response = await apiFetch(
+          `${BACKEND_BASE_URL}/sections/${act}/page?page=${page}&size=${size}&language=${encodeURIComponent(language)}&search=${encodeURIComponent(search)}`,
+          { headers: { ...getAuthHeader() } }
+        );
+      } catch {
+        throw new Error("Cannot reach the backend. Please check Spring Boot.");
+      }
+
+      return parseJsonResponse(
+        response,
+        `Could not load ${act} sections.`
+      );
+    },
+
+    async getSectionDetails(sectionId, language = "en") {
+      if (!Number.isInteger(Number(sectionId)) || Number(sectionId) <= 0) {
+        throw new Error("Invalid section ID.");
+      }
+
+      let response;
+
+      try {
+        response = await apiFetch(
+          `${BACKEND_BASE_URL}/sections/${encodeURIComponent(sectionId)}/details?language=${encodeURIComponent(language)}`,
+          { headers: { ...getAuthHeader() } }
+        );
+      } catch {
+        throw new Error("Cannot reach the backend. Please check Spring Boot.");
+      }
+
+      return parseJsonResponse(
+        response,
+        "Could not load section details."
+      );
+    },
+
+    async explainLegalSection(sectionId, language = "en") {
+      if (!Number.isInteger(Number(sectionId)) || Number(sectionId) <= 0) {
+        throw new Error("Invalid section ID.");
+      }
+
+      let response;
+      try {
+        response = await apiFetch(
+          `${BACKEND_BASE_URL}/legal/sections/${encodeURIComponent(sectionId)}/explain?language=${encodeURIComponent(language)}`,
+          { method: "POST", headers: { ...getAuthHeader() } }
+        );
+      } catch {
+        throw new Error("Cannot reach the backend. Please check Spring Boot.");
+      }
+
+      return parseJsonResponse(
+        response,
+        "Could not generate a simple explanation."
+      );
+    }
+  };
