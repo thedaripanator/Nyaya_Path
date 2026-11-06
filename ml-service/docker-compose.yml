@@ -1,0 +1,37 @@
+
+services:
+  qwen:
+    image: ghcr.io/ggml-org/llama.cpp:server
+    container_name: nyaya-qwen
+    ports:
+      - "8080:8080"
+    volumes:
+      - qwen-cache:/root/.cache
+    command:
+      - "-hf"
+      - "Qwen/Qwen3-4B-GGUF:Q4_K_M"
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "8080"
+      - "-c"
+      - "4096"
+      - "-np"
+      - "1"
+    restart: unless-stopped
+
+  ml-service:
+    build: .
+    container_name: nyaya-ml-service
+    ports:
+      - "8001:8001"
+    env_file:
+      - .env
+    environment:
+      MODEL_API_URL: "http://qwen:8080/v1/chat/completions"
+    depends_on:
+      - qwen
+    restart: unless-stopped
+
+volumes:
+  qwen-cache:

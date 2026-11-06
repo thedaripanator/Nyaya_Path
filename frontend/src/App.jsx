@@ -1,12 +1,15 @@
 import React, { useEffect, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import {
   Scale, BookOpen, FileText, Search, MessageSquare, Upload, User, Settings,
-  HelpCircle, LogOut, ChevronRight, Mic, Send, Globe, Bookmark, BookmarkCheck,
+  HelpCircle, LogOut, ChevronRight, Mic, Send, Bookmark, BookmarkCheck,
   Sparkles, ShieldAlert, FileCheck, Menu, X, ArrowRight,
   AlertCircle, SplitSquareVertical, Briefcase, FileSearch
 } from "lucide-react";
 import { MOCK_LAWS, MOCK_JUDGMENTS } from "./data/mockData";
 import { apiService } from "./services/apiService";
+import LanguageSelector from "./components/LanguageSelector";
 
 const CITIZEN_WORKSPACE_NAV = [
   ["/dashboard", "Overview", Briefcase],
@@ -383,12 +386,13 @@ function Brand({ subtitle }) {
 }
 
 function PublicNavbar({ route, user, navigate }) {
+  const { t } = useTranslation();
   const [menuOpen, setMenuOpen] = useState(false);
   const links = [
-    ["/", "Home"],
-    ["/judgments", "Case Laws"],
-    ["/laws", "Indian Laws"],
-    ["/about", "About"]
+    ["/", t("public.home")],
+    ["/judgments", t("public.caseLaws")],
+    ["/laws", t("nav.laws")],
+    ["/about", t("public.about")]
   ];
 
   const follow = (path) => {
@@ -410,15 +414,16 @@ function PublicNavbar({ route, user, navigate }) {
           ))}
         </nav>
         <div className="public-nav-actions">
-          <button className="nav-search-button" onClick={() => follow("/judgments")} aria-label="Search court judgments" title="Search court judgments">
+          <LanguageSelector compact />
+          <button className="nav-search-button" onClick={() => follow("/judgments")} aria-label={t("public.search")} title={t("public.search")}>
             <Search size={18} />
           </button>
           {user ? (
-            <button className="nav-login-button" onClick={() => follow("/dashboard")}>Workspace</button>
+            <button className="nav-login-button" onClick={() => follow("/dashboard")}>{t("public.workspace")}</button>
           ) : (
             <>
-              <button className="nav-login-button" onClick={() => follow("/login")}>Login</button>
-              <button className="nav-signup-button" onClick={() => follow("/register")}>Sign up</button>
+              <button className="nav-login-button" onClick={() => follow("/login")}>{t("public.login")}</button>
+              <button className="nav-signup-button" onClick={() => follow("/register")}>{t("public.signup")}</button>
             </>
           )}
         </div>
@@ -438,13 +443,13 @@ function PublicNavbar({ route, user, navigate }) {
               {label}<ArrowRight size={15} />
             </button>
           ))}
-          <button className="public-mobile-link" onClick={() => follow("/judgments")}>Search court judgments<Search size={15} /></button>
+          <button className="public-mobile-link" onClick={() => follow("/judgments")}>{t("public.search")}<Search size={15} /></button>
           {user ? (
-            <button className="public-mobile-link" onClick={() => follow("/dashboard")}>Go to workspace<ArrowRight size={15} /></button>
+          <button className="public-mobile-link" onClick={() => follow("/dashboard")}>{t("public.workspace")}<ArrowRight size={15} /></button>
           ) : (
             <div className="public-mobile-actions">
-              <button className="nav-login-button" onClick={() => follow("/login")}>Login</button>
-              <button className="nav-signup-button" onClick={() => follow("/register")}>Sign up</button>
+            <button className="nav-login-button" onClick={() => follow("/login")}>{t("public.login")}</button>
+            <button className="nav-signup-button" onClick={() => follow("/register")}>{t("public.signup")}</button>
             </div>
           )}
         </div>
@@ -454,13 +459,21 @@ function PublicNavbar({ route, user, navigate }) {
 }
 
 function AuthenticatedLayout({ route, user, navigate, logout, mobileOpen, setMobileOpen, children }) {
+  const { t } = useTranslation();
   const isAdvocate = isAdvocateUser(user);
   const navigation = isAdvocate ? ADVOCATE_WORKSPACE_NAV : CITIZEN_WORKSPACE_NAV;
   const isActiveRoute = (path) => route === path
     || (path === "/laws" && route.startsWith("/laws/"))
     || (path === "/judgments" && route.startsWith("/judgments/"));
-  const currentPage = navigation.find(([path]) => isActiveRoute(path))?.[1]
-    || (route === "/profile" ? "My profile" : route === "/settings" ? "Settings" : "Help & support");
+  const currentPageRoute = navigation.find(([path]) => isActiveRoute(path))?.[0];
+  const currentPage = currentPageRoute === "/dashboard" ? t("nav.overview")
+    : currentPageRoute === "/ask" ? t("nav.guidance")
+      : currentPageRoute === "/laws" ? t("nav.laws")
+        : currentPageRoute === "/judgments" ? t("nav.judgments")
+          : route === "/profile" ? t("nav.profile")
+            : route === "/settings" ? t("nav.settings")
+              : route === "/help" ? t("nav.help")
+                : navigation.find(([path]) => isActiveRoute(path))?.[1];
 
   return (
     <div className="workspace-layout">
@@ -475,7 +488,7 @@ function AuthenticatedLayout({ route, user, navigate, logout, mobileOpen, setMob
         <button className="workspace-brand-button" onClick={() => { navigate("/dashboard"); setMobileOpen(false); }}>
           <Brand subtitle={isAdvocate ? "ADVOCATE WORKSPACE" : "CITIZEN WORKSPACE"} />
         </button>
-        <div className="sidebar-section-label">WORKSPACE</div>
+        <div className="sidebar-section-label">{t("nav.workspace")}</div>
         <nav className="workspace-nav">
           {navigation.map(([path, label, Icon]) => (
             <button
@@ -485,16 +498,20 @@ function AuthenticatedLayout({ route, user, navigate, logout, mobileOpen, setMob
               aria-current={isActiveRoute(path) ? "page" : undefined}
             >
               <Icon size={18} strokeWidth={1.8} />
-              <span>{label}</span>
+              <span>{path === "/dashboard" ? t("nav.overview")
+                : path === "/ask" ? t("nav.guidance")
+                  : path === "/laws" ? t("nav.laws")
+                    : path === "/judgments" ? t("nav.judgments")
+                      : label}</span>
             </button>
           ))}
         </nav>
-        <div className="sidebar-section-label sidebar-account-label">ACCOUNT</div>
+        <div className="sidebar-section-label sidebar-account-label">{t("nav.account")}</div>
         <nav className="workspace-nav">
           {[
-            ["/profile", "My profile", User],
-            ["/settings", "Settings", Settings],
-            ["/help", "Help & support", HelpCircle]
+            ["/profile", t("nav.profile"), User],
+            ["/settings", t("nav.settings"), Settings],
+            ["/help", t("nav.help"), HelpCircle]
           ].map(([path, label, Icon]) => (
             <button
               key={path}
@@ -515,7 +532,7 @@ function AuthenticatedLayout({ route, user, navigate, logout, mobileOpen, setMob
           </span>
         </div>
         <button className="workspace-logout" onClick={logout}>
-          <LogOut size={17} /><span>Log out</span>
+          <LogOut size={17} /><span>{t("nav.logout")}</span>
         </button>
       </aside>
       <div className="workspace-main">
@@ -529,9 +546,10 @@ function AuthenticatedLayout({ route, user, navigate, logout, mobileOpen, setMob
             {mobileOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
           <div className="workspace-breadcrumb"><span>NyayaPath</span><ChevronRight size={15} /><b>{currentPage}</b></div>
+          <LanguageSelector compact />
           <button className="workspace-user-button" onClick={() => navigate("/profile")}>
             <span className="workspace-user-avatar"><User size={16} /></span>
-            <span>{user?.name || user?.email || "My account"}</span>
+            <span>{user?.name || user?.email || t("nav.myAccount")}</span>
           </button>
         </header>
         <main className="workspace-content">{children}</main>
@@ -1041,6 +1059,7 @@ function Input({ label, value, onChange, type = "text", placeholder, autoComplet
 // 3. DASHBOARDS (ROLE DIFFERENTIATED)
 // ==========================================
 function DashboardPage({ user, navigate, savedLaws, savedJudgments }) {
+  const { t } = useTranslation();
   const isAdvocate = isAdvocateUser(user);
   const actions = isAdvocate
     ? [
@@ -1050,9 +1069,9 @@ function DashboardPage({ user, navigate, savedLaws, savedJudgments }) {
         ["Client documents", "/documents", FileText, "Upload and review indexed briefs"]
       ]
     : [
-        ["Ask Nyaya AI", "/ask", MessageSquare, "Get a plain-language legal explanation"],
-        ["Explore Indian laws", "/laws", BookOpen, "Browse acts and key provisions"],
-        ["Court judgments", "/judgments", Scale, "Read selected landmark decisions"]
+        [t("dashboard.askAI"), "/ask", MessageSquare, t("dashboard.askAIDesc")],
+        [t("dashboard.exploreLaws"), "/laws", BookOpen, t("dashboard.exploreLawsDesc")],
+        [t("dashboard.judgments"), "/judgments", Scale, t("dashboard.judgmentsDesc")]
       ];
 
   return (
@@ -1060,11 +1079,13 @@ function DashboardPage({ user, navigate, savedLaws, savedJudgments }) {
       <section className="dashboard-welcome">
         <div className="dashboard-welcome-copy">
           <span className="eyebrow">{isAdvocate ? "ADVOCATE WORKSPACE" : "CITIZEN WORKSPACE"}</span>
-          <h1>Welcome back, {user?.name || user?.email || "Counsel"}</h1>
+          <h1>{isAdvocate
+            ? `Welcome back, ${user?.name || user?.email || "Counsel"}`
+            : t("dashboard.welcome", { name: user?.name || user?.email || "Citizen" })}</h1>
           <p>
             {isAdvocate
               ? `Advocate${user?.advocateDetails?.primaryPracticeArea ? ` · ${user.advocateDetails.primaryPracticeArea}` : ""}${user?.advocateDetails?.primaryCourt ? ` · ${user.advocateDetails.primaryCourt}` : ""}`
-              : "Your legal information and guidance tools, all in one place."}
+              : t("dashboard.tagline")}
           </p>
         </div>
         <div className="dashboard-welcome-actions">
@@ -1075,14 +1096,14 @@ function DashboardPage({ user, navigate, savedLaws, savedJudgments }) {
             </>
           ) : (
             <>
-              <CTA onClick={() => navigate("/ask")} icon={<MessageSquare />} text="Ask a question" primary />
-              <CTA onClick={() => navigate("/laws")} icon={<BookOpen />} text="Browse laws" />
+              <CTA onClick={() => navigate("/ask")} icon={<MessageSquare />} text={t("dashboard.askQuestion")} primary />
+              <CTA onClick={() => navigate("/laws")} icon={<BookOpen />} text={t("dashboard.browseLaws")} />
             </>
           )}
         </div>
       </section>
 
-      <h2 className="dashboard-actions-heading">Your tools</h2>
+      <h2 className="dashboard-actions-heading">{isAdvocate ? "Your tools" : t("dashboard.tools")}</h2>
       <div className="dashboard-quick-grid">
         {actions.map(([title, path, Icon, description]) => (
           <button key={path} className="dashboard-quick-card" onClick={() => navigate(path)}>
@@ -1095,12 +1116,12 @@ function DashboardPage({ user, navigate, savedLaws, savedJudgments }) {
 
       <div className="dashboard-saved-grid">
         <Saved
-          title={`Saved Laws & Acts (${savedLaws.length})`}
+          title={t("dashboard.savedLaws", { count: savedLaws.length })}
           items={savedLaws.map((id) => MOCK_LAWS.find((x) => x.id === id)).filter(Boolean)}
           onClick={(id) => navigate("/laws/:id", id)}
         />
         <Saved
-          title={`Saved Judgments (${savedJudgments.length})`}
+          title={t("dashboard.savedJudgments", { count: savedJudgments.length })}
           items={savedJudgments.map((id) => MOCK_JUDGMENTS.find((x) => x.id === id)).filter(Boolean)}
           onClick={(id) => navigate("/judgments/:id", id)}
         />
@@ -1110,12 +1131,13 @@ function DashboardPage({ user, navigate, savedLaws, savedJudgments }) {
 }
 
 function Saved({ title, items, onClick }) {
+  const { t } = useTranslation();
   return (
     <section className="saved-card">
       <h3>{title}</h3>
       <div className="saved-items">
         {items.length === 0 ? (
-          <p className="saved-empty">No bookmarks saved yet.</p>
+          <p className="saved-empty">{t("dashboard.noBookmarks")}</p>
         ) : (
           items.map((x) => (
             <button
@@ -1137,20 +1159,29 @@ function Saved({ title, items, onClick }) {
 // 4. CITIZEN AI ASSISTANT (PLAIN LANGUAGE)
 // ==========================================
 function CitizenAIPage({ user, navigate }) {
-  const [messages, setMessages] = useState([
+  const { i18n, t } = useTranslation();
+  const [messages, setMessages] = useState(() => [
     {
       sender: "ai",
-      text: "Namaste! I am your Nyaya-Path plain language legal guide. Ask any question regarding your rights, property disputes, bail, or employment laws."
+      text: t("ai.greeting")
     }
   ]);
   const [input, setInput] = useState("");
-  const [lang, setLang] = useState("English");
   const [loading, setLoading] = useState(false);
   const end = useRef(null);
+  const languageName = { en: "English", hi: "Hindi", kn: "Kannada", mr: "Marathi" }[
+    i18n.resolvedLanguage || "en"
+  ];
 
   useEffect(() => {
     end.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
+
+  useEffect(() => {
+    setMessages((current) => current.length === 1 && current[0].sender === "ai"
+      ? [{ ...current[0], text: t("ai.greeting") }]
+      : current);
+  }, [i18n.resolvedLanguage, t]);
 
   const send = async () => {
     if (!input.trim() || loading) return;
@@ -1160,7 +1191,7 @@ function CitizenAIPage({ user, navigate }) {
     setLoading(true);
 
     try {
-      const res = await apiService.askCitizenAI(question, lang);
+      const res = await apiService.askCitizenAI(question, languageName);
       setMessages((prev) => [
         ...prev,
         {
@@ -1184,25 +1215,14 @@ function CitizenAIPage({ user, navigate }) {
       <div className="flex flex-wrap justify-between items-center gap-3 border-b pb-4 mb-4">
         <div>
           <span className="text-[11px] font-bold text-emerald-600 uppercase bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
-            Citizen Mode
+            {t("ai.mode")}
           </span>
           <h1 className="text-2xl font-black text-slate-950 mt-1 flex items-center gap-2">
-            <Sparkles className="text-amber-500" /> Plain Legal Language Assistant
+            <Sparkles className="text-amber-500" /> {t("ai.title")}
           </h1>
         </div>
 
-        <label className="text-xs font-bold flex items-center gap-2 text-slate-600 bg-white border p-2 rounded-xl">
-          <Globe size={15} />
-          <select value={lang} onChange={(e) => setLang(e.target.value)} className="bg-transparent outline-none">
-            <option>English</option>
-            <option>Hindi</option>
-            <option>Bengali</option>
-            <option>Tamil</option>
-            <option>Telugu</option>
-            <option>Marathi</option>
-            <option>Kannada</option>
-          </select>
-        </label>
+        <LanguageSelector compact />
       </div>
 
       <div className="flex-1 overflow-y-auto space-y-4 pr-1">
@@ -1212,15 +1232,15 @@ function CitizenAIPage({ user, navigate }) {
               m.sender === "user" ? "bg-slate-950 text-white" : "bg-white border border-slate-200 text-slate-800"
             }`}>
               <div className="text-[10px] uppercase font-bold opacity-60 mb-1.5">
-                {m.sender === "user" ? user?.name || "Citizen" : "Nyaya Path Guide"}
+                {m.sender === "user" ? user?.name || "Citizen" : t("ai.guide")}
               </div>
               <p className="text-sm whitespace-pre-line leading-relaxed" role={m.error ? "alert" : undefined}>
-                {m.error ? `Could not get a response: ${m.text}` : m.text}
+                {m.error ? t("ai.responseError", { message: m.text }) : m.text}
               </p>
 
               {m.sources && m.sources.length > 0 && (
                 <div className="mt-4 pt-3 border-t border-slate-100 text-xs text-slate-500">
-                  <b className="text-slate-700 block mb-1">Court References & Sources:</b>
+                  <b className="text-slate-700 block mb-1">{t("ai.sources")}</b>
                   <div className="space-y-1">
                     {m.sources.map((s, idx) => (
                       <div key={idx} className="bg-slate-50 p-2 rounded-lg border border-slate-200">
@@ -1235,7 +1255,7 @@ function CitizenAIPage({ user, navigate }) {
         ))}
         {loading && (
           <div className="flex items-center gap-2 text-xs font-semibold text-amber-700 bg-amber-50 p-3 rounded-2xl w-fit">
-            <Sparkles className="animate-spin w-4 h-4" /> Synthesizing plain-language legal explanation...
+            <Sparkles className="animate-spin w-4 h-4" /> {t("ai.loading")}
           </div>
         )}
         <div ref={end} />
@@ -1247,17 +1267,17 @@ function CitizenAIPage({ user, navigate }) {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
           rows="2"
-          placeholder="Ask in simple words (e.g. 'What is anticipatory bail under Section 438?')..."
+          placeholder={t("ai.placeholder")}
           className="w-full resize-none outline-none p-2 text-sm text-slate-800"
         />
         <div className="flex justify-between items-center pt-1 border-t border-slate-100">
-          <span className="text-[11px] text-slate-400">Press Enter to send</span>
+          <span className="text-[11px] text-slate-400">{t("ai.pressEnter")}</span>
           <button
             onClick={send}
             disabled={!input.trim() || loading}
             className="px-5 py-2 bg-slate-950 hover:bg-slate-900 text-amber-400 rounded-xl text-xs font-bold transition flex items-center gap-1.5 disabled:opacity-40"
           >
-            <Send size={14} /> Send
+            <Send size={14} /> {t("ai.send")}
           </button>
         </div>
       </div>
@@ -1662,76 +1682,481 @@ function DocumentsPage({ user, navigate }) {
 // ==========================================
 // 9. LAWS & JUDGMENTS BROWSERS
 // ==========================================
-function LawsPage({ navigate, savedLaws, toggleSave }) {
+
+
+function LawsPage({ navigate }) {
+  const { t, i18n } = useTranslation();
   const [q, setQ] = useState("");
-  const [cat, setCat] = useState("All");
-  const categories = ["All", ...new Set(MOCK_LAWS.map((l) => l.category))];
-  const filtered = MOCK_LAWS.filter((x) =>
-    (cat === "All" || x.category === cat) &&
-    `${x.title} ${x.description}`.toLowerCase().includes(q.toLowerCase())
-  );
+  const [actFilter, setActFilter] = useState("All");
+  const [page, setPage] = useState(0);
+  const { data, isLoading: loading, error: queryError } = useQuery({
+    queryKey: ["law-sections", actFilter, page, q, i18n.resolvedLanguage],
+    queryFn: () => apiService.getSectionsPage(actFilter, page, 12, i18n.resolvedLanguage || "en", q),
+    refetchInterval: (query) => query.state.data?.translationStatus === "TRANSLATION_PENDING" ? 5000 : false
+  });
+  const error = queryError?.message || "";
+  const sections = data?.content || [];
+  const filteredSections = sections;
 
   return (
-    <ListPage title="Indian Laws & Acts" subtitle="Prototype sample content. Verify statutes against current official sources." search={q} setSearch={setQ} filter={cat} setFilter={setCat} filters={categories}>
-      {filtered.length === 0 ? (
-        <p className="rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-600" role="status">
-          No laws match your search and category filter.
+    <ListPage
+      title={t("laws.title")}
+      subtitle={t("laws.subtitle")}
+      search={q}
+      setSearch={(value) => { setQ(value); setPage(0); }}
+      filter={actFilter}
+      setFilter={(value) => { setActFilter(value); setPage(0); }}
+      filters={["All", "BNS", "BNSS"]}
+      searchPlaceholder={t("laws.search")}
+    >
+      {/* Loading */}
+      {loading && (
+        <p className="text-sm text-slate-600" role="status">
+          {t("laws.loading")}
         </p>
-      ) : (
-        <div className="grid md:grid-cols-2 gap-5">
-          {filtered.map((l) => (
-            <div key={l.id} className="legal-record-card bg-white border border-slate-200 rounded-3xl p-5 shadow-sm hover:shadow-md transition">
-              <div className="flex justify-between items-center">
-                <span className="text-[10px] font-bold bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full">{l.category}</span>
-                <button type="button" aria-label={`${savedLaws.includes(l.id) ? "Remove" : "Save"} ${l.title}`} onClick={() => toggleSave(l.id)}>
-                  {savedLaws.includes(l.id) ? <BookmarkCheck className="text-amber-500" /> : <Bookmark className="text-slate-400" />}
-                </button>
-              </div>
-              <h2 className="font-bold text-base text-slate-950 mt-3">{l.title}</h2>
-              <p className="text-xs text-slate-500">{l.number} • {l.year}</p>
-              <p className="text-xs text-slate-600 mt-2 line-clamp-2">{l.description}</p>
-              <button type="button" onClick={() => navigate("/laws/:id", l.id)} className="mt-3 text-xs font-bold text-amber-700 flex items-center gap-1">
-                View Sections <ArrowRight size={13} />
+      )}
+
+      {/* Error */}
+      {error && (
+        <p
+          className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800"
+          role="alert"
+        >
+          {error}
+        </p>
+      )}
+
+      {/* Empty result */}
+      {!loading && !error && filteredSections.length === 0 && (
+        <p className="rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-600">
+          {t("laws.empty")}
+        </p>
+      )}
+
+      {/* Section cards */}
+      {!loading && !error && filteredSections.length > 0 && (
+        <>
+          <p className="text-xs text-slate-500 mb-4">
+            {t("laws.showing", { count: data?.totalElements ?? filteredSections.length })}
+          </p>
+
+          <div className="grid md:grid-cols-2 gap-5">
+            {filteredSections.map((section) => {
+              return (
+                <div
+                  key={section.id}
+                  className="legal-record-card bg-white border border-slate-200 rounded-3xl p-5 shadow-sm hover:shadow-md transition"
+                >
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] font-bold bg-slate-100 text-slate-700 px-2 py-1 rounded-full">
+                      {section.translatedAct || section.act}
+                    </span>
+
+                    <span className="text-[10px] font-bold bg-emerald-50 text-emerald-700 px-2 py-1 rounded-full">
+                      {t("laws.section", { number: section.sectionNumber })}
+                    </span>
+                  </div>
+
+                  <h2 className="font-bold text-base text-slate-950 mt-3">
+                    {section.translatedSectionTitle || section.sectionTitle || t("laws.untitled")}
+                  </h2>
+
+                  {(section.translatedChapter || section.chapter) && (
+                    <p className="text-xs text-slate-500 mt-2">
+                      {section.translatedChapter || section.chapter}
+                    </p>
+                  )}
+
+                  {section.translatedContext && (
+                    <p className="text-xs text-slate-600 mt-3">
+                      {section.translatedContext}
+                    </p>
+                  )}
+
+                  <p className="text-xs text-slate-600 mt-3 line-clamp-3">
+                    {section.translatedText || section.originalText || section.text}
+                  </p>
+                  {i18n.resolvedLanguage !== "en" && (
+                    <span className="mt-2 inline-block text-[10px] text-amber-700">
+                      {section.translationStatus === "MACHINE_TRANSLATED"
+                        ? t("detail.translationTitle")
+                        : section.translationStatus === "TRANSLATION_PENDING"
+                          ? t("detail.translationPending")
+                          : t("detail.translationUnavailable")}
+                    </span>
+                  )}
+
+                  {i18n.resolvedLanguage !== "en" && (
+                    <details className="mt-2 text-xs text-slate-500">
+                      <summary className="cursor-pointer font-semibold">{t("common.original")}</summary>
+                      <p className="mt-2 whitespace-pre-wrap">
+                        {section.act} · {t("laws.section", { number: section.sectionNumber })}
+                        {section.sectionTitle ? ` — ${section.sectionTitle}` : ""}
+                        {section.chapter ? ` · ${section.chapter}` : ""}
+                        {"\n\n"}
+                        {section.originalText || t("detail.originalFallback")}
+                      </p>
+                    </details>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      navigate(
+                        "/laws/:id",
+                        section.id
+                      )
+                    }
+                    className="mt-4 text-xs font-bold text-amber-700 flex items-center gap-1"
+                  >
+                    {t("laws.viewDetails")}
+                    <ArrowRight size={13} />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+          {data?.totalPages > 1 && (
+            <nav className="mt-6 flex items-center justify-center gap-4" aria-label="Section pages">
+              <button
+                type="button"
+                onClick={() => setPage((current) => Math.max(0, current - 1))}
+                disabled={page === 0 || loading}
+                className="rounded-lg border px-3 py-2 text-xs font-semibold disabled:opacity-40"
+              >
+                ← {t("common.back")}
               </button>
-            </div>
-          ))}
-        </div>
+              <span className="text-xs text-slate-600">{page + 1} / {data.totalPages}</span>
+              <button
+                type="button"
+                onClick={() => setPage((current) => Math.min(data.totalPages - 1, current + 1))}
+                disabled={page + 1 >= data.totalPages || loading}
+                className="rounded-lg border px-3 py-2 text-xs font-semibold disabled:opacity-40"
+              >
+                {t("common.next")} →
+              </button>
+            </nav>
+          )}
+        </>
       )}
     </ListPage>
   );
 }
 
-function LawDetailPage({ id, navigate, savedLaws, toggleSave }) {
-  const law = MOCK_LAWS.find((x) => x.id === id);
-  if (!law) return <NotFoundPage navigate={navigate} />;
+
+
+function LawDetailPage({ id, navigate }) {
+  const { t, i18n } = useTranslation();
+  const { data: details, isLoading: loading, error: queryError } = useQuery({
+    queryKey: ["law-section-detail", id, i18n.resolvedLanguage],
+    queryFn: () => apiService.getSectionDetails(id, i18n.resolvedLanguage || "en"),
+    enabled: Number.isInteger(Number(id)) && Number(id) > 0,
+    refetchInterval: (query) => query.state.data?.translationStatus === "TRANSLATION_PENDING" ? 5000 : false
+  });
+  const error = Number.isInteger(Number(id)) && Number(id) > 0
+    ? queryError?.message || ""
+    : "Invalid section link.";
+  const [explanation, setExplanation] = useState(null);
+  const [explanationLoading, setExplanationLoading] = useState(false);
+  const [explanationError, setExplanationError] = useState("");
+
+  useEffect(() => {
+    setExplanation(null);
+    setExplanationError("");
+  }, [id, i18n.resolvedLanguage]);
+
+  if (loading) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        <p className="text-sm text-slate-600" role="status">
+          {t("detail.loading")}
+        </p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        <button
+          onClick={() => navigate("/laws")}
+          className="text-xs font-bold text-amber-700 mb-4"
+        >
+          ← {t("detail.back")}
+        </button>
+
+        <p
+          className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800"
+          role="alert"
+        >
+          {error}
+        </p>
+      </div>
+    );
+  }
+
+  const section = details?.section;
+  const classifications = details?.classifications || [];
+  const translatedClassifications = details?.translatedClassifications || [];
+  const translatedClassificationById = new Map(
+    translatedClassifications.map((item) => [item.id, item])
+  );
+
+  if (!section) {
+    return <NotFoundPage navigate={navigate} />;
+  }
+
+  const actCode = section.act?.startsWith("BNSS") ? "BNSS" : "BNS";
+
+  const parentContext = classifications.filter(
+    (item) => item.entryType === "PARENT_CONTEXT"
+  );
+
+  const offenceEntries = classifications.filter(
+    (item) => item.entryType === "OFFENCE"
+  );
+
+  const loadSimpleExplanation = async () => {
+    setExplanationLoading(true);
+    setExplanationError("");
+    setExplanation(null);
+
+    try {
+      const result = await apiService.explainLegalSection(
+        section.id,
+        i18n.resolvedLanguage || "en"
+      );
+      setExplanation(result);
+    } catch (err) {
+      setExplanationError(
+        err.message || "Could not generate a simple explanation."
+      );
+    } finally {
+      setExplanationLoading(false);
+    }
+  };
 
   return (
-    <DetailShell title={law.title} meta={`${law.number} • ${law.year}`} back={() => navigate("/laws")}>
-      <div className="flex justify-between items-center mt-2">
-        <span className="bg-amber-100 text-amber-900 px-3 py-1 rounded-full text-xs font-bold">{law.category}</span>
-        <button onClick={() => toggleSave(law.id)}>
-          {savedLaws.includes(law.id) ? <BookmarkCheck className="text-amber-500" /> : <Bookmark className="text-slate-400" />}
+    <DetailShell
+      title={`${t("laws.section", { number: section.sectionNumber })} — ${details.translatedSectionTitle || section.sectionTitle || t("laws.untitled")}`}
+      meta={`${section.act} ${(details.translatedChapter || section.chapter) ? `• ${details.translatedChapter || section.chapter}` : ""}`}
+      back={() => navigate("/laws")}
+    >
+      <div className="flex flex-wrap gap-2 mt-4">
+        <span className="bg-amber-100 text-amber-900 px-3 py-1 rounded-full text-xs font-bold">
+          {actCode}
+        </span>
+
+        <span className="bg-slate-100 text-slate-700 px-3 py-1 rounded-full text-xs">
+          {t("laws.section", { number: section.sectionNumber })}
+        </span>
+      </div>
+
+      {/* Original statutory text */}
+      <div className="mt-7">
+        <h2 className="font-bold text-lg text-slate-950">
+          {i18n.resolvedLanguage === "en"
+            || details.translationStatus === "FALLBACK_ORIGINAL"
+            || details.translationStatus === "TRANSLATION_PENDING"
+            ? t("detail.originalTitle")
+            : t("detail.translationTitle")}
+        </h2>
+
+        <p className="text-xs text-slate-500 mt-1 mb-4">
+          {i18n.resolvedLanguage === "en"
+            ? t("detail.originalNote")
+            : details.translationStatus === "FALLBACK_ORIGINAL"
+                || details.translationStatus === "TRANSLATION_UNAVAILABLE"
+              ? t("detail.translationUnavailable")
+              : details.translationStatus === "TRANSLATION_PENDING"
+                ? t("detail.translationPending")
+              : t("detail.translationNote")}
+        </p>
+
+        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+          <p className="text-sm text-slate-800 leading-7 whitespace-pre-wrap">
+            {i18n.resolvedLanguage === "en"
+              || details.translationStatus === "FALLBACK_ORIGINAL"
+              || details.translationStatus === "TRANSLATION_UNAVAILABLE"
+              || details.translationStatus === "TRANSLATION_PENDING"
+              ? section.originalText || section.text || t("detail.originalFallback")
+              : details.translatedText || t("detail.translationUnavailable")}
+          </p>
+        </div>
+        {i18n.resolvedLanguage !== "en"
+          && details.translationStatus !== "FALLBACK_ORIGINAL"
+          && details.translationStatus !== "TRANSLATION_UNAVAILABLE"
+          && details.translationStatus !== "TRANSLATION_PENDING" && (
+          <details className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
+            <summary className="cursor-pointer text-sm font-bold text-slate-800">{t("common.original")}</summary>
+            <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-slate-700">
+              {section.originalText || section.text || t("detail.originalFallback")}
+            </p>
+          </details>
+        )}
+      </div>
+
+      <section className="mt-6" aria-labelledby="simple-explanation-heading">
+        <button
+          type="button"
+          onClick={loadSimpleExplanation}
+          disabled={explanationLoading}
+          className="inline-flex items-center gap-2 rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          <Sparkles size={16} />
+          {explanationLoading ? t("detail.generating") : t("detail.explain")}
         </button>
-      </div>
-      <p className="mt-4 text-sm text-slate-700">{law.description}</p>
-      <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mt-5">
-        <b className="text-xs uppercase text-amber-900 tracking-wider">Plain-Language Summary</b>
-        <p className="text-xs text-slate-800 mt-1">{law.simpleExplanation}</p>
-      </div>
-      <h2 className="font-bold text-base mt-6 mb-3">Key Sections</h2>
-      <div className="space-y-3">
-        {law.keySections.map((s) => (
-          <div className="border border-slate-200 rounded-xl p-3.5 text-xs bg-slate-50" key={s.number}>
-            <b className="text-slate-900">{s.number} — {s.title}</b>
-            <p className="text-slate-600 mt-1">{s.content}</p>
+
+        {explanationError && (
+          <p className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800" role="alert">
+            {explanationError}
+          </p>
+        )}
+
+        {explanation?.explanation && (
+          <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-5">
+            <h2 id="simple-explanation-heading" className="font-bold text-lg text-slate-950">
+              {t("detail.explanation")}
+            </h2>
+            <div className="mt-4 space-y-4 text-sm leading-6 text-slate-800">
+              {[
+                [t("detail.explanation"), explanation.explanation.simple_explanation],
+                [t("detail.terms"), explanation.explanation.technical_terms_explained],
+                [t("detail.matters"), explanation.explanation.why_this_law_matters],
+                [t("detail.example"), explanation.explanation.real_life_example],
+                [t("detail.conditions"), explanation.explanation.conditions_and_exceptions],
+                [t("detail.consequence"), explanation.explanation.punishment_or_legal_consequence],
+              ].map(([label, value]) => (
+                <div key={label}>
+                  <h3 className="font-bold text-slate-950">{label}</h3>
+                  <p>{value}</p>
+                </div>
+              ))}
+            </div>
+            {explanation.disclaimer && (
+              <p className="mt-4 border-t border-amber-200 pt-3 text-xs text-slate-600">
+                {explanation.disclaimer}
+              </p>
+            )}
           </div>
-        ))}
-      </div>
+        )}
+      </section>
+
+      {/* BNS offence classifications */}
+      {actCode === "BNS" && (
+        <div className="mt-8">
+          <h2 className="font-bold text-lg text-slate-950">
+            {t("detail.classification")}
+          </h2>
+
+          <p className="text-xs text-slate-500 mt-1 mb-4">
+            {t("detail.classificationNote")}
+          </p>
+
+          {parentContext.map((item, index) => (
+            <div
+              key={`parent-${index}`}
+              className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4"
+            >
+              <p className="text-xs font-bold text-amber-900 mb-1">
+                {t("detail.sectionContext")}
+              </p>
+              <p className="text-sm text-slate-800">
+                {translatedClassificationById.get(item.id)?.offenceDescription || item.offenceDescription}
+              </p>
+            </div>
+          ))}
+
+          {offenceEntries.length === 0 ? (
+            <p className="text-sm text-slate-600 border rounded-xl p-4">
+              {t("detail.noClassification")}
+            </p>
+          ) : (
+            <div className="space-y-4">
+              {offenceEntries.map((item, index) => (
+                <div
+                  key={item.id || index}
+                  className="border border-slate-200 rounded-2xl p-5"
+                >
+                  <h3 className="font-bold text-sm text-slate-900">
+                    {offenceEntries.length > 1
+                      ? t("detail.offence", { number: index + 1 })
+                      : t("detail.offence", { number: 1 })}
+                  </h3>
+
+                  <p className="text-sm text-slate-700 mt-2 leading-6">
+                    {translatedClassificationById.get(item.id)?.offenceDescription || item.offenceDescription}
+                  </p>
+
+                  <div className="grid sm:grid-cols-2 gap-3 mt-4">
+                    <div className="bg-slate-50 rounded-xl p-3">
+                      <p className="text-[10px] text-slate-500 font-bold uppercase">
+                        {t("detail.punishment")}
+                      </p>
+                      <p className="text-xs text-slate-800 mt-1">
+                        {translatedClassificationById.get(item.id)?.punishment || item.punishment || "Not available"}
+                      </p>
+                    </div>
+
+                    <div className="bg-slate-50 rounded-xl p-3">
+                      <p className="text-[10px] text-slate-500 font-bold uppercase">
+                        {t("detail.cognizable")}
+                      </p>
+                      <p className="text-xs text-slate-800 mt-1">
+                        {item.cognizableStatus || "Not available"}
+                      </p>
+                    </div>
+
+                    <div className="bg-slate-50 rounded-xl p-3">
+                      <p className="text-[10px] text-slate-500 font-bold uppercase">
+                        {t("detail.bailable")}
+                      </p>
+                      <p className="text-xs text-slate-800 mt-1">
+                        {item.bailableStatus || "Not available"}
+                      </p>
+                    </div>
+
+                    <div className="bg-slate-50 rounded-xl p-3">
+                      <p className="text-[10px] text-slate-500 font-bold uppercase">
+                        {t("detail.trialCourt")}
+                      </p>
+                      <p className="text-xs text-slate-800 mt-1">
+                        {item.trialCourt || "Not available"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* BNSS explanation */}
+      {actCode === "BNSS" && (
+        <div className="mt-7 rounded-xl border border-blue-200 bg-blue-50 p-4">
+          <p className="text-sm font-bold text-blue-900">
+            {t("detail.procedural")}
+          </p>
+          <p className="text-xs text-blue-800 mt-1 leading-5">
+            {t("detail.proceduralNote")}
+          </p>
+        </div>
+      )}
+
+      <p className="text-[11px] text-slate-500 mt-7 border-t pt-4">
+        Always verify legal provisions and their current applicability
+        against authoritative sources. This platform provides legal
+        information, not legal advice.
+      </p>
     </DetailShell>
   );
 }
 
+
+
 function JudgmentsPage({ navigate, savedJudgments, toggleSave }) {
+  const { t } = useTranslation();
   const [q, setQ] = useState("");
   const [court, setCourt] = useState("All");
   const courts = ["All", ...new Set(MOCK_JUDGMENTS.map((j) => j.court))];
@@ -1741,10 +2166,10 @@ function JudgmentsPage({ navigate, savedJudgments, toggleSave }) {
   );
 
   return (
-    <ListPage title="Indian Court Judgments" subtitle="Prototype sample content. Verify judgments and citations against official court records." search={q} setSearch={setQ} filter={court} setFilter={setCourt} filters={courts}>
+    <ListPage title={t("judgments.title")} subtitle={t("judgments.subtitle")} search={q} setSearch={setQ} filter={court} setFilter={setCourt} filters={courts} searchPlaceholder={t("common.search")}>
       {filtered.length === 0 ? (
         <p className="rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-600" role="status">
-          No judgments match your search and court filter.
+          {t("judgments.noMatches")}
         </p>
       ) : (
         <div className="space-y-4">
@@ -1752,7 +2177,7 @@ function JudgmentsPage({ navigate, savedJudgments, toggleSave }) {
             <div key={j.id} className="legal-record-card bg-white border rounded-2xl p-5 shadow-sm space-y-2">
               <div className="flex justify-between items-center">
                 <span className="text-[10px] font-bold bg-blue-50 text-blue-800 px-2 py-0.5 rounded-full">{j.court}</span>
-                <button type="button" aria-label={`${savedJudgments.includes(j.id) ? "Remove" : "Save"} ${j.caseName}`} onClick={() => toggleSave(j.id)}>
+                <button type="button" aria-label={t(savedJudgments.includes(j.id) ? "judgments.remove" : "judgments.save", { name: j.caseName })} onClick={() => toggleSave(j.id)}>
                   {savedJudgments.includes(j.id) ? <BookmarkCheck className="text-amber-500" /> : <Bookmark className="text-slate-400" />}
                 </button>
               </div>
@@ -1760,7 +2185,7 @@ function JudgmentsPage({ navigate, savedJudgments, toggleSave }) {
               <p className="text-xs text-slate-500">{j.year} • {j.caseNumber}</p>
               <p className="text-xs text-slate-700">{j.shortSummary}</p>
               <button type="button" onClick={() => navigate("/judgments/:id", j.id)} className="text-xs font-bold text-amber-700 flex items-center gap-1">
-                Read Judgment <ArrowRight size={13} />
+                {t("judgments.read")} <ArrowRight size={13} />
               </button>
             </div>
           ))}
@@ -1771,18 +2196,19 @@ function JudgmentsPage({ navigate, savedJudgments, toggleSave }) {
 }
 
 function JudgmentDetailPage({ id, navigate, savedJudgments, toggleSave }) {
+  const { t } = useTranslation();
   const j = MOCK_JUDGMENTS.find((x) => x.id === id);
   if (!j) return <NotFoundPage navigate={navigate} />;
 
   return (
     <DetailShell title={j.caseName} meta={`${j.court} • ${j.year} • ${j.caseNumber}`} back={() => navigate("/judgments")}>
-      <div className="text-xs text-slate-500 mt-2">Bench: {j.judges.join(", ")}</div>
+      <div className="text-xs text-slate-500 mt-2">{t("judgments.bench")} {j.judges.join(", ")}</div>
       <div className="bg-slate-950 text-white rounded-2xl p-5 mt-5">
-        <h3 className="font-bold text-amber-400 text-xs uppercase tracking-wider">AI Ratio Decidendi</h3>
+        <h3 className="font-bold text-amber-400 text-xs uppercase tracking-wider">{t("judgments.ratio")}</h3>
         <p className="text-xs text-slate-300 mt-2">{j.aiSummary}</p>
       </div>
       <div className="border rounded-2xl p-4 mt-5 text-xs text-slate-700 space-y-2">
-        <b>Acts & Provisions Considered:</b>
+        <b>{t("judgments.acts")}</b>
         <div className="flex flex-wrap gap-2">
           {j.actsInvolved.map((a) => (
             <span key={a} className="bg-slate-100 px-2 py-1 rounded text-slate-800">{a}</span>
@@ -1793,17 +2219,18 @@ function JudgmentDetailPage({ id, navigate, savedJudgments, toggleSave }) {
   );
 }
 
-function ListPage({ title, subtitle, search, setSearch, filter, setFilter, filters, children }) {
+function ListPage({ title, subtitle, search, setSearch, filter, setFilter, filters, searchPlaceholder, children }) {
+  const { t } = useTranslation();
   return (
     <div className="catalog-page max-w-7xl mx-auto px-4 py-8">
       <SectionTitle title={title} desc={subtitle} />
       <div className="catalog-toolbar bg-white border rounded-2xl p-3 mt-6 flex flex-col sm:flex-row gap-3 shadow-sm">
         <div className="catalog-search flex-1 flex items-center gap-2 border rounded-xl px-3 bg-slate-50">
           <Search size={16} className="text-slate-400" />
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search..." className="w-full bg-transparent outline-none p-2 text-xs" />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={searchPlaceholder || t("common.search")} className="w-full bg-transparent outline-none p-2 text-xs" />
         </div>
-        <select aria-label="Filter results" value={filter} onChange={(e) => setFilter(e.target.value)} className="catalog-filter border rounded-xl p-2 text-xs bg-white">
-          {filters.map((x) => <option key={x}>{x}</option>)}
+        <select aria-label={t("common.filter")} value={filter} onChange={(e) => setFilter(e.target.value)} className="catalog-filter border rounded-xl p-2 text-xs bg-white">
+          {filters.map((x) => <option key={x} value={x}>{x === "All" ? t("laws.all") : x}</option>)}
         </select>
       </div>
       <div className="mt-6">{children}</div>
@@ -1812,9 +2239,10 @@ function ListPage({ title, subtitle, search, setSearch, filter, setFilter, filte
 }
 
 function DetailShell({ title, meta, back, children }) {
+  const { t } = useTranslation();
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
-      <button onClick={back} className="text-xs font-bold text-amber-700 mb-4 hover:underline">← Back to catalogue</button>
+      <button onClick={back} className="text-xs font-bold text-amber-700 mb-4 hover:underline">← {t("detail.back")}</button>
       <div className="bg-white border rounded-3xl p-6 sm:p-8 shadow-md">
         <h1 className="text-2xl font-black text-slate-950">{title}</h1>
         <p className="text-xs text-slate-500 mt-1">{meta}</p>
@@ -1825,20 +2253,21 @@ function DetailShell({ title, meta, back, children }) {
 }
 
 function ProfilePage({ user }) {
+  const { t } = useTranslation();
   return (
     <div className="max-w-xl mx-auto px-4 py-12">
       <div className="bg-white border rounded-3xl p-8 shadow-md space-y-4">
-        <h1 className="text-xl font-black text-slate-950">User Profile</h1>
+        <h1 className="text-xl font-black text-slate-950">{t("profile.title")}</h1>
         <div className="space-y-2 text-xs">
-          <div><span className="text-slate-500">Name:</span> <b className="text-slate-800">{user?.name}</b></div>
-          <div><span className="text-slate-500">Email:</span> <b className="text-slate-800">{user?.email}</b></div>
-          <div><span className="text-slate-500">Role:</span> <b className="text-amber-700 uppercase">{user?.role}</b></div>
+          <div><span className="text-slate-500">{t("profile.name")}</span> <b className="text-slate-800">{user?.name}</b></div>
+          <div><span className="text-slate-500">{t("profile.email")}</span> <b className="text-slate-800">{user?.email}</b></div>
+          <div><span className="text-slate-500">{t("profile.role")}</span> <b className="text-amber-700 uppercase">{user?.role}</b></div>
           {user?.advocateDetails && (
             <div className="mt-4 pt-3 border-t space-y-1 bg-slate-50 p-3 rounded-xl">
-              <div><span className="text-slate-500">Enrollment:</span> <b>{user.advocateDetails.enrollmentNumber}</b></div>
-              <div><span className="text-slate-500">Bar Council:</span> <b>{user.advocateDetails.stateBarCouncil}</b></div>
-              <div><span className="text-slate-500">Practice Area:</span> <b>{user.advocateDetails.primaryPracticeArea}</b></div>
-              <div><span className="text-slate-500">Court:</span> <b>{user.advocateDetails.primaryCourt}</b></div>
+              <div><span className="text-slate-500">{t("profile.enrollment")}</span> <b>{user.advocateDetails.enrollmentNumber}</b></div>
+              <div><span className="text-slate-500">{t("profile.barCouncil")}</span> <b>{user.advocateDetails.stateBarCouncil}</b></div>
+              <div><span className="text-slate-500">{t("profile.practice")}</span> <b>{user.advocateDetails.primaryPracticeArea}</b></div>
+              <div><span className="text-slate-500">{t("profile.court")}</span> <b>{user.advocateDetails.primaryCourt}</b></div>
             </div>
           )}
         </div>
@@ -1848,11 +2277,13 @@ function ProfilePage({ user }) {
 }
 
 function SettingsPage() {
+  const { t } = useTranslation();
   return (
     <div className="max-w-xl mx-auto px-4 py-12">
       <div className="bg-white border rounded-3xl p-8 shadow-md text-xs text-slate-600">
-        <h1 className="text-xl font-black text-slate-950 mb-3">Settings</h1>
-        <p>PostgreSQL profile and language settings configured.</p>
+        <h1 className="text-xl font-black text-slate-950 mb-3">{t("settings.title")}</h1>
+        <p>{t("settings.language")}</p>
+        <div className="mt-4"><LanguageSelector /></div>
       </div>
     </div>
   );
@@ -1871,11 +2302,12 @@ function AboutPage() {
 }
 
 function HelpPage() {
+  const { t } = useTranslation();
   return (
     <div className="max-w-3xl mx-auto px-4 py-12">
       <div className="bg-white border rounded-3xl p-8 shadow-md text-xs text-slate-700 space-y-3 leading-relaxed">
-        <h1 className="text-2xl font-black text-slate-950">Legal Disclaimer</h1>
-        <p>Nyaya-Path is an informational and technological platform and does not provide formal legal representation. Always verify important matters with certified advocates.</p>
+        <h1 className="text-2xl font-black text-slate-950">{t("help.title")}</h1>
+        <p>{t("help.disclaimer")}</p>
       </div>
     </div>
   );

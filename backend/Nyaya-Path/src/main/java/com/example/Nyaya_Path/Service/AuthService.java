@@ -1,3 +1,4 @@
+
 package com.example.Nyaya_Path.Service;
 
 import com.example.Nyaya_Path.Config.JwtTokenProvider;
@@ -10,6 +11,7 @@ import com.example.Nyaya_Path.dto.LoginRequest;
 import com.example.Nyaya_Path.dto.LoginResponse;
 import com.example.Nyaya_Path.dto.RegisterRequest;
 import com.example.Nyaya_Path.dto.RegisterResponse;
+
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +22,7 @@ import java.util.Map;
 
 @Service
 public class AuthService {
+
     private final UserRepository userRepository;
     private final AdvocateProfileRepository advocateProfileRepository;
     private final PasswordEncoder passwordEncoder;
@@ -29,71 +32,61 @@ public class AuthService {
             UserRepository userRepository,
             AdvocateProfileRepository advocateProfileRepository,
             PasswordEncoder passwordEncoder,
-            JwtTokenProvider tokenProvider
-    ) {
+            JwtTokenProvider tokenProvider) {
+
         this.userRepository = userRepository;
         this.advocateProfileRepository = advocateProfileRepository;
         this.passwordEncoder = passwordEncoder;
         this.tokenProvider = tokenProvider;
     }
 
+    // -------------------- REGISTER --------------------
+
     @Transactional
     public RegisterResponse register(RegisterRequest request) {
+
+        String email = request.getEmail().trim().toLowerCase();
+
+        // Prevent public Admin registration
         if (request.getRole() == UserRole.Admin) {
-            throw new RuntimeException("Admin accounts cannot be created through public registration.");
-        }
-        // Check duplicate email in PostgreSQL
-        if (userRepository.existsByEmail(request.getEmail().toLowerCase().trim())) {
-            throw new RuntimeException("Email is already registered. Please login.");
+            throw new RuntimeException(
+                    "Admin accounts cannot be created through public registration."
+            );
         }
 
-        // If Advocate, validate advocate information
+        // Check duplicate email
+        if (userRepository.existsByEmail(email)) {
+            throw new RuntimeException(
+                    "Email is already registered. Please login."
+            );
+        }
+
+        // Validate Advocate information
         if (request.getRole() == UserRole.Advocate) {
-            if (isBlank(request.getEnrollmentNumber())
-                    || isBlank(request.getStateBarCouncil())
-                    || isBlank(request.getPrimaryPracticeArea())
-                    || isBlank(request.getPrimaryCourt())) {
-                throw new RuntimeException("All advocate fields (enrollment number, bar council, practice area, court) are required.");
-            }
-
-            if (advocateProfileRepository.existsByEnrollmentNumber(request.getEnrollmentNumber().trim())) {
-                throw new RuntimeException("This Bar Council enrollment number is already registered.");
-            }
+            validateAdvocateDetails(request);
         }
 
-        // Create and save User in PostgreSQL
+        Instant now = Instant.now();
+
+        // Create user
         User user = User.builder()
                 .name(request.getName().trim())
-                .email(request.getEmail().toLowerCase().trim())
+                .email(email)
                 .password(passwordEncoder.encode(request.getPassword()))
                 .role(request.getRole())
-                .createdAt(Instant.now())
-                .updatedAt(Instant.now())
+                .createdAt(now)
+                .updatedAt(now)
                 .build();
 
         User savedUser = userRepository.save(user);
 
-        // If Advocate, create and save a fully active profile in PostgreSQL without any manual approval gate.
+        // Create Advocate profile if applicable
         if (request.getRole() == UserRole.Advocate) {
-            AdvocateProfile profile = AdvocateProfile.builder()
-                    .userId(savedUser.getId())
-                    .enrollmentNumber(request.getEnrollmentNumber().trim())
-                    .stateBarCouncil(request.getStateBarCouncil().trim())
-                    .primaryPracticeArea(request.getPrimaryPracticeArea().trim())
-                    .primaryCourt(request.getPrimaryCourt().trim())
-                    .enrollmentStatus("VERIFIED")
-                    .createdAt(Instant.now())
-                    .build();
-
-            advocateProfileRepository.save(profile);
+            createAdvocateProfile(request, savedUser);
         }
 
-        // Generate JWT token
-        String token = tokenProvider.createToken(
-                savedUser.getId(),
-                savedUser.getEmail(),
-                savedUser.getRole().name()
-        );
+        // Generate JWT
+        String token = generateToken(savedUser);
 
         RegisterResponse response = new RegisterResponse(
                 savedUser.getId(),
@@ -102,44 +95,48 @@ public class AuthService {
                 savedUser.getRole().name(),
                 "Account created successfully. Welcome to Nyaya-Path!"
         );
+
         response.setToken(token);
+
         return response;
     }
 
+    // -------------------- LOGIN --------------------
+
     public LoginResponse login(LoginRequest request) {
-        String cleanEmail = request.getEmail().toLowerCase().trim();
-        User user = userRepository.findByEmail(cleanEmail)
-                .orElseThrow(() -> new RuntimeException("Invalid email or password."));
 
-        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            throw new RuntimeException("Invalid email or password.");
+        String email = request.getEmail().trim().toLowerCase();
+
+        // Find user
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException(
+                        "Invalid email or password."
+                ));
+
+        // Verify password
+        if (!passwordEncoder.matches(
+                request.getPassword(),
+                user.getPassword())) {
+
+            throw new RuntimeException(
+                    "Invalid email or password."
+            );
         }
 
-        String token = tokenProvider.createToken(
-                user.getId(),
-                user.getEmail(),
-                user.getRole().name()
-        );
+        // Generate JWT
+        String token = generateToken(user);
 
-        Map<String, Object> advocateDetails = null;
-        if (user.getRole() == UserRole.Advocate) {
-            AdvocateProfile p = advocateProfileRepository.findByUserId(user.getId()).orElse(null);
-            if (p != null) {
-                advocateDetails = new HashMap<>();
-                advocateDetails.put("enrollmentNumber", p.getEnrollmentNumber());
-                advocateDetails.put("stateBarCouncil", p.getStateBarCouncil());
-                advocateDetails.put("primaryPracticeArea", p.getPrimaryPracticeArea());
-                advocateDetails.put("primaryCourt", p.getPrimaryCourt());
-                advocateDetails.put("enrollmentStatus", p.getEnrollmentStatus());
-            }
-        }
+        // Get Advocate details if applicable
+        Map<String, Object> advocateDetails =
+                getAdvocateDetails(user);
 
-        LoginResponse.UserSummary userSummary = new LoginResponse.UserSummary(
-                user.getId(),
-                user.getName(),
-                user.getEmail(),
-                user.getRole().name()
-        );
+        LoginResponse.UserSummary userSummary =
+                new LoginResponse.UserSummary(
+                        user.getId(),
+                        user.getName(),
+                        user.getEmail(),
+                        user.getRole().name()
+                );
 
         return LoginResponse.builder()
                 .success(true)
@@ -150,31 +147,115 @@ public class AuthService {
                 .build();
     }
 
+    // -------------------- CURRENT USER --------------------
+
     public Map<String, Object> getCurrentUserProfile(String email) {
-        User user = userRepository.findByEmail(email.toLowerCase().trim())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        User user = userRepository.findByEmail(
+                email.trim().toLowerCase()
+        ).orElseThrow(() -> new RuntimeException("User not found"));
 
         Map<String, Object> response = new HashMap<>();
+
         response.put("id", user.getId());
         response.put("name", user.getName());
         response.put("email", user.getEmail());
         response.put("role", user.getRole().name());
         response.put("createdAt", user.getCreatedAt());
 
-        if (user.getRole() == UserRole.Advocate) {
-            advocateProfileRepository.findByUserId(user.getId()).ifPresent(profile -> {
-                Map<String, Object> adv = new HashMap<>();
-                adv.put("enrollmentNumber", profile.getEnrollmentNumber());
-                adv.put("stateBarCouncil", profile.getStateBarCouncil());
-                adv.put("primaryPracticeArea", profile.getPrimaryPracticeArea());
-                adv.put("primaryCourt", profile.getPrimaryCourt());
-                adv.put("enrollmentStatus", profile.getEnrollmentStatus());
-                response.put("advocateProfile", adv);
-            });
+        Map<String, Object> advocateDetails = getAdvocateDetails(user);
+
+        if (advocateDetails != null) {
+            response.put("advocateProfile", advocateDetails);
         }
 
         return response;
     }
+
+    // -------------------- ADVOCATE VALIDATION --------------------
+
+    private void validateAdvocateDetails(RegisterRequest request) {
+
+        if (isBlank(request.getEnrollmentNumber())
+                || isBlank(request.getStateBarCouncil())
+                || isBlank(request.getPrimaryPracticeArea())
+                || isBlank(request.getPrimaryCourt())) {
+
+            throw new RuntimeException(
+                    "All advocate fields (enrollment number, bar council, practice area, court) are required."
+            );
+        }
+
+        String enrollmentNumber =
+                request.getEnrollmentNumber().trim();
+
+        if (advocateProfileRepository.existsByEnrollmentNumber(
+                enrollmentNumber)) {
+
+            throw new RuntimeException(
+                    "This Bar Council enrollment number is already registered."
+            );
+        }
+    }
+
+    // -------------------- CREATE ADVOCATE PROFILE --------------------
+
+    private void createAdvocateProfile(
+            RegisterRequest request,
+            User user) {
+
+        AdvocateProfile profile = AdvocateProfile.builder()
+                .userId(user.getId())
+                .enrollmentNumber(request.getEnrollmentNumber().trim())
+                .stateBarCouncil(request.getStateBarCouncil().trim())
+                .primaryPracticeArea(request.getPrimaryPracticeArea().trim())
+                .primaryCourt(request.getPrimaryCourt().trim())
+                .enrollmentStatus("VERIFIED")
+                .createdAt(Instant.now())
+                .build();
+
+        advocateProfileRepository.save(profile);
+    }
+
+    // -------------------- GET ADVOCATE DETAILS --------------------
+
+    private Map<String, Object> getAdvocateDetails(User user) {
+
+        if (user.getRole() != UserRole.Advocate) {
+            return null;
+        }
+
+        AdvocateProfile profile = advocateProfileRepository
+                .findByUserId(user.getId())
+                .orElse(null);
+
+        if (profile == null) {
+            return null;
+        }
+
+        Map<String, Object> details = new HashMap<>();
+
+        details.put("enrollmentNumber", profile.getEnrollmentNumber());
+        details.put("stateBarCouncil", profile.getStateBarCouncil());
+        details.put("primaryPracticeArea", profile.getPrimaryPracticeArea());
+        details.put("primaryCourt", profile.getPrimaryCourt());
+        details.put("enrollmentStatus", profile.getEnrollmentStatus());
+
+        return details;
+    }
+
+    // -------------------- JWT GENERATION --------------------
+
+    private String generateToken(User user) {
+
+        return tokenProvider.createToken(
+                user.getId(),
+                user.getEmail(),
+                user.getRole().name()
+        );
+    }
+
+    // -------------------- UTILITY --------------------
 
     private boolean isBlank(String value) {
         return value == null || value.trim().isEmpty();

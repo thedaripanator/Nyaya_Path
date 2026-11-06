@@ -40,6 +40,42 @@ body {
   background: var(--cream);
 }
 
+html[lang="hi"] body,
+html[lang="mr"] body {
+  font-family: "Noto Sans Devanagari", "Nirmala UI", "Mangal", system-ui, sans-serif;
+}
+
+html[lang="kn"] body {
+  font-family: "Noto Sans Kannada", "Nirmala UI", "Tunga", system-ui, sans-serif;
+}
+
+.workspace-language-selector {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 9px;
+  color: #665a50;
+  border: 1px solid #e3ddd5;
+  border-radius: 10px;
+  background: #fff;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.workspace-language-selector select {
+  max-width: 105px;
+  border: 0;
+  outline: 0;
+  color: inherit;
+  background: transparent;
+  font-size: inherit;
+}
+
+.workspace-language-selector:focus-within {
+  outline: 3px solid var(--light-tan);
+  outline-offset: 2px;
+}
+
 button,
 input,
 textarea,
